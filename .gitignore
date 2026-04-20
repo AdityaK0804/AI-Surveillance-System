@@ -49,4 +49,7 @@ build/
 # Temporary files
 tmp/
 temp/
-*.tmp
+# Models and binaries
+models/
+*.whl
+insightface-0.7.3-cp313-cp313-win_amd64.whl
