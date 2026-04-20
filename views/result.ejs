@@ -1,0 +1,101 @@
+<%- include('partials/header', { title: 'Match Results — Crescent College' }) %>
+
+    <!-- Result Section -->
+    <section class="result-section">
+        <div class="result-container">
+            <div class="result-header">
+                <h1>Student Match Results</h1>
+                <p>Here's the student information we found</p>
+            </div>
+
+            <div class="result-grid">
+                <!-- Uploaded Image Card -->
+                <div class="result-card">
+                    <h2><i class="fas fa-upload"></i> Uploaded Photo</h2>
+                    <img src="<%= uploadedImage %>" alt="Uploaded Image" class="image">
+                </div>
+
+                <!-- Match Information Card -->
+                <div class="result-card result-info">
+                    <h3><i class="fas fa-fingerprint"></i> Detection Details</h3>
+                    
+                    <% if (matches && matches.length > 0 && matches[0].eye_sim !== undefined) { %>
+                        <div class="technical-stats" style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color); text-align: left;">
+                            <div class="info-item" style="border: none; padding: 4px 0; display: flex; justify-content: space-between;">
+                                <span class="info-label" style="font-size: 0.8rem; opacity: 0.6;">Full-Face Similarity</span>
+                                <span class="info-value" style="font-size: 0.85rem;"><%= (matches[0].full_sim * 100).toFixed(1) %>%</span>
+                            </div>
+                            <div class="info-item" style="border: none; padding: 4px 0; display: flex; justify-content: space-between; color: #f59e0b;">
+                                <span class="info-label" style="font-size: 0.8rem; color: #f59e0b;">Eye-Region Similarity</span>
+                                <span class="info-value" style="font-size: 0.85rem;"><i class="fas fa-bullseye"></i> <%= (matches[0].eye_sim * 100).toFixed(1) %>%</span>
+                            </div>
+                            <div class="info-item" style="border: none; padding: 4px 0; font-size: 0.7rem; opacity: 0.5; margin-top: 5px;">
+                                <span>Refinement Mode: Active (Mask Support)</span>
+                            </div>
+                        </div>
+                    <% } %>
+
+                    <% if (error) { %>
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <%= error %>
+                        </div>
+                        <% } else { %>
+                            <div class="info-item">
+                                <span class="info-label">Name</span>
+                                <span class="info-value"><%= personInfo.name %></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">RRN</span>
+                                <span class="info-value"><%= personInfo.rrn %></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Dept / Year</span>
+                                <span class="info-value"><%= personInfo.department %> - <%= personInfo.year %></span>
+                            </div>
+
+                            <div class="match-score-display" style="margin-top: 2rem;">
+                                <div class="match-score-label">Final Identification</div>
+                                <div class="match-score-value"><%= matchScore %></div>
+                            </div>
+
+                            <% if (matches && matches.length > 1) { %>
+                                <div class="top-matches">
+                                    <h4>Other Candidates</h4>
+                                    <ul>
+                                        <% matches.slice(1, 3).forEach(match=> { %>
+                                            <li>
+                                                <strong><%= match.name %></strong> — <%= (match.confidence * 100).toFixed(1) %>%
+                                            </li>
+                                        <% }); %>
+                                    </ul>
+                                </div>
+                            <% } %>
+                    <% } %>
+                </div>
+
+                <!-- Matched Image Card -->
+                <div class="result-card">
+                    <h2><i class="fas fa-check-circle" style="color: #22c55e;"></i> Matched Photo</h2>
+                    <% if (matchedImage) { %>
+                        <img src="<%= matchedImage %>" alt="Matched Image" class="image">
+                        <% } else { %>
+                            <div style="padding: 2rem; text-align: center; color: #71717a;">
+                                <i class="fas fa-user-slash"
+                                    style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
+                                <p>No match found</p>
+                            </div>
+                            <% } %>
+                </div>
+            </div>
+
+            <div style="text-align: center;">
+                <a href="/" class="back-btn">
+                    <i class="fas fa-arrow-left"></i>
+                    Match Another Student
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <%- include('partials/footer') %>

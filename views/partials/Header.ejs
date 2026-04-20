@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Crescent College Image Matching System - AI-powered student identification and verification">
+    <meta name="keywords" content="Crescent College, image matching, student identification, facial recognition">
+    <title>
+        <%= title || 'Crescent College — Image Matching' %>
+    </title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="Header" id="header">
+        <a href="/" class="logo">
+            <img src="/images/logo.jpg" alt="Crescent College">
+            <span class="logo-text">crescent <span class="highlight">college</span></span>
+        </a>
+        <nav class="navbar" id="navbar">
+            <a href="/">Home</a>
+            <a href="/about">About</a>
+            <a href="/contact">Support</a>
+            <% if (typeof isLoggedIn !=='undefined' && isLoggedIn) { %>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/home#upload" id="matchNowNavBtn" class="nav-cta">Match Now <i class="fas fa-arrow-right"></i></a>
+                <a href="/auth/logout" class="nav-auth-btn"
+                    style="padding: 0.5rem 1rem; font-size: 0.9rem; font-weight: 500; color: #a3a3a3; border-radius: 6px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+                <% } else { %>
+                    <a href="/auth/login"
+                        style="padding: 0.5rem 1rem; font-size: 0.9rem; font-weight: 500; color: #a3a3a3; border-radius: 6px;">Login</a>
+                    <a href="/auth/register" class="nav-cta">Register <i class="fas fa-user-plus"></i></a>
+                    <% } %>
+        </nav>
+        <div id="menu-btn" class="fas fa-bars" onclick="toggleMenu()"></div>
+    </header>
+
+    <script>
+        function toggleMenu() {
+            const navbar = document.getElementById('navbar');
+            const menuBtn = document.getElementById('menu-btn');
+            navbar.classList.toggle('active');
+            menuBtn.classList.toggle('fa-bars');
+            menuBtn.classList.toggle('fa-times');
+        }
+        
+        // Handle Match Now Navigation
+        document.addEventListener('DOMContentLoaded', () => {
+            const matchBtn = document.getElementById('matchNowNavBtn');
+            if (matchBtn) {
+                matchBtn.addEventListener('click', function(e) {
+                    if (window.location.pathname === '/' || window.location.pathname === '/home') {
+                        e.preventDefault();
+                        const el = document.getElementById('upload');
+                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }
+                });
+            }
+        });
+    </script>

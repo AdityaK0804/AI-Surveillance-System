@@ -1,0 +1,159 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset="utf-8">
+<title>Crescent Face Recognition System Documentation</title>
+<style>
+    body { font-family: 'Times New Roman', serif; line-height: 1.6; padding: 2cm; }
+    h1 { color: #2E74B5; border-bottom: 2px solid #2E74B5; padding-bottom: 10px; }
+    h2 { color: #1F4D78; margin-top: 25px; }
+    h3 { color: #2E74B5; margin-top: 20px; }
+    p { margin-bottom: 15px; }
+    ul { margin-bottom: 15px; }
+    li { margin-bottom: 5px; }
+    code { font-family: 'Courier New', monospace; background-color: #f0f0f0; padding: 2px 5px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; margin-bottom: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; color: #333; }
+    .page-break { page-break-before: always; }
+    .center { text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="center">
+    <br><br><br>
+    <h1>Crescent Face Recognition System</h1>
+    <h2>Project Documentation</h2>
+    <p><strong>Date:</strong> January 07, 2026</p>
+    <br><br><br>
+</div>
+
+<div class="page-break"></div>
+
+<h2>1. Abstract</h2>
+<p>
+In the modern educational environment, efficient and accurate student identification is critical for security and administrative management. Traditional manual verification methods are often time-consuming and prone to human error. This project presents the <strong>Crescent Face Recognition System</strong>, a robust web-based application designed to automate the identification process using advanced deep learning techniques. The system features a responsive Node.js and Express.js frontend for user interaction and image acquisition, seamlessly integrated with a powerful Python-based backend engine for biometric processing.
+</p>
+<p>
+The core matching logic employs a multi-stage pipeline utilizing <strong>MTCNN (Multi-task Cascaded Convolutional Networks)</strong> for precise face detection and alignment. For feature extraction, the system implements an <strong>ensemble of FaceNet models</strong> (InceptionResnetV1 pretrained on VGGFace2 and CASIA-WebFace) to generate high-dimensional 512-d embeddings, ensuring resilience against variations in lighting, pose, and expression. Matching is performed using a hybrid approach that combines <strong>K-Nearest Neighbors (KNN)</strong> retrieval with <strong>ArcFace angular similarity metrics</strong> to maximize accuracy. The system successfully identifies students from an uploaded image and instantly retrieves their academic details (Name, RRN, Department) from a structured database, demonstrating a high-performance solution for real-time institutional identity management.
+</p>
+
+<h2>2. Project Overview</h2>
+<p>This application allows users to upload a photo of a student to automatically identify them against a school database. It uses advanced state-of-the-art Deep Learning models to detect faces, extract unique features (embeddings), and find the best match with high accuracy.</p>
+
+<h3>Tech Stack</h3>
+<ul>
+    <li><strong>Web Server:</strong> Node.js (v23+) & Express.js</li>
+    <li><strong>Frontend:</strong> EJS Templates with custom CSS (modern black/white "glassmorphism" aesthetic)</li>
+    <li><strong>AI Engine:</strong> Python (PyTorch, Facenet-PyTorch, Scikit-learn)</li>
+    <li><strong>Database:</strong> JSON-based flat-file storage (<code>image_data.json</code> and <code>embeddings_cache.json</code>)</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h2>3. Architecture & Workflow</h2>
+<p>The system works in a 3-step pipeline:</p>
+<ol>
+    <li><strong>Input:</strong> User uploads an image via the web interface.</li>
+    <li><strong>Processing:</strong> The Node.js server saves the image and spawns a Python subprocess to analyze it.</li>
+    <li><strong>Output:</strong> The Python script returns match data (Student Name, RRN, Dept) which the web server displays.</li>
+</ol>
+
+<h3>Detailed Data Flow</h3>
+<ol>
+    <li><code>routes/homeroute.js</code> accepts the image upload using <code>Multer</code>.</li>
+    <li>It creates a unique <code>matchId</code> and immediately renders the <code>scanning.ejs</code> page to the user.</li>
+    <li>In the background, it runs the command: <code>venv/Scripts/python match.py updates/filename</code>.</li>
+    <li>The <code>scanning</code> page polls the API endpoint <code>/api/match-status/:matchId</code> every second to check if Python has finished.</li>
+    <li>Once finished, the user is redirected to <code>result.ejs</code> to see the match info.</li>
+</ol>
+
+<h2>4. Codebase Breakdown</h2>
+
+<h3>A. The Core Logic: <code>match.py</code></h3>
+<p>This is the brain of the operation. It classifies images using an ensemble of deep learning models.</p>
+<h4>Key Features:</h4>
+<ul>
+    <li><strong>Face Detection (MTCNN):</strong> Uses "Multi-task Cascaded Convolutional Networks" to accurately locate the face in the photo, even if it's side-facing or partially obscured.</li>
+    <li><strong>Feature Extraction (FaceNet Ensemble):</strong> It doesn't just use one model; it averages the results of two variations of <code>InceptionResnetV1</code>:
+        <ul>
+            <li><code>vggface2</code>: Trained on a dataset with large variations in pose and age.</li>
+            <li><code>casia-webface</code>: Trained on a cleaner, identity-focused dataset.</li>
+        </ul>
+        <em>Why?</em> Combining these creates a more robust "fingerprint" of the face that is harder to fool.
+    </li>
+    <li><strong>Quality Assessment:</strong> Before matching, it calculates a "Quality Score" (0.0 to 1.0) based on Brightness, Contrast, and Sharpness. If quality is &lt; 30%, it rejects the image.</li>
+    <li><strong>Matching Algorithm:</strong>
+        <ul>
+            <li><strong>KNN (K-Nearest Neighbors):</strong> Quickly finds the top 5 closest faces in the database using vector math.</li>
+            <li><strong>ArcFace Similarity:</strong> Calculates the "angular distance" between faces, which is far more accurate for human faces than standard distance metrics.</li>
+        </ul>
+    </li>
+</ul>
+
+<h3>B. The Server: <code>index.js</code> & <code>routes/homeroute.js</code></h3>
+<ul>
+    <li><strong><code>index.js</code>:</strong> Sets up the Express server, static folders, and view engine.</li>
+    <li><strong><code>homeroute.js</code>:</strong> Handles the POST upload, manages background tasks, and bridges Node.js with Python.</li>
+</ul>
+
+<h3>C. Data Management</h3>
+<ul>
+    <li><strong><code>image_data.json</code>:</strong> Acts as the primary database mapping filenames to student info.</li>
+    <li><strong><code>embeddings_cache.json</code>:</strong> Auto-generated file storing calculated face vectors for instant matching.</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h2>5. Project Timeline (Gantt Chart)</h2>
+<p>The following table outlines the 12-week development schedule for the project.</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Phase</th>
+            <th>Task Description</th>
+            <th style="width: 150px;">Duration</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>1. Planning</strong></td>
+            <td>Requirement Analysis & Tech Stack Selection</td>
+            <td>Weeks 1-2</td>
+        </tr>
+        <tr>
+            <td><strong>2. Design</strong></td>
+            <td>System Architecture & UI Wireframing</td>
+            <td>Weeks 2-3</td>
+        </tr>
+        <tr>
+            <td><strong>3. Development</strong></td>
+            <td>Frontend (EJS/CSS) & Backend (Node API)</td>
+            <td>Weeks 3-6</td>
+        </tr>
+        <tr>
+            <td><strong>4. ML Implementation</strong></td>
+            <td>Model training, Ensemble setup, Python Scripting</td>
+            <td>Weeks 6-9</td>
+        </tr>
+        <tr>
+            <td><strong>5. Integration</strong></td>
+            <td>Connecting Node.js to Python & Database</td>
+            <td>Weeks 8-10</td>
+        </tr>
+        <tr>
+            <td><strong>6. Testing</strong></td>
+            <td>System Testing, Debugging, & Refinement</td>
+            <td>Weeks 10-11</td>
+        </tr>
+        <tr>
+            <td><strong>7. Closure</strong></td>
+            <td>Documentation & Final Report</td>
+            <td>Week 12</td>
+        </tr>
+    </tbody>
+</table>
+
+</body>
+</html>

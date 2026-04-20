@@ -1,0 +1,487 @@
+<%- include('partials/header', { title: 'Dashboard — Crescent College' }) %>
+
+    <style>
+        .dashboard-section {
+            min-height: 100vh;
+            padding: 120px 5% 80px;
+            background: #000000;
+        }
+
+        .dashboard-container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .welcome-text h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 0.25rem;
+        }
+
+        .welcome-text p {
+            color: #a3a3a3;
+            font-size: 0.95rem;
+        }
+
+        .user-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #111111;
+            border: 1px solid #262626;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            color: #a3a3a3;
+        }
+
+        .user-badge i {
+            color: #ffffff;
+        }
+
+        /* Stats Row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .stat-card {
+            background: #0a0a0a;
+            border: 1px solid #262626;
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: 0.2s ease;
+        }
+
+        .stat-card:hover {
+            border-color: #404040;
+            transform: translateY(-2px);
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            color: #a3a3a3;
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            color: #737373;
+            font-size: 0.85rem;
+        }
+
+        /* Upload Section in Dashboard */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .dash-card {
+            background: #0a0a0a;
+            border: 1px solid #262626;
+            border-radius: 20px;
+            padding: 2rem;
+        }
+
+        .dash-card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 1.5rem;
+        }
+
+        .dash-card-header i {
+            color: #a3a3a3;
+        }
+
+        .dash-card-header h2 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        /* Upload Area */
+        .dash-upload-area {
+            border: 2px dashed #262626;
+            border-radius: 16px;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.2s ease;
+            position: relative;
+            margin-bottom: 1.25rem;
+        }
+
+        .dash-upload-area:hover {
+            border-color: #525252;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .dash-upload-area.file-selected {
+            border-color: #525252;
+            background: rgba(255, 255, 255, 0.03);
+            border-style: solid;
+        }
+
+        .dash-upload-area input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            cursor: pointer;
+        }
+
+        .dash-upload-icon {
+            width: 56px;
+            height: 56px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin: 0 auto 1rem;
+            color: #a3a3a3;
+            transition: 0.2s ease;
+        }
+
+        .dash-upload-area:hover .dash-upload-icon {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+
+        .dash-upload-text {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .dash-upload-hint {
+            font-size: 0.8rem;
+            color: #525252;
+        }
+
+        .dash-file-name {
+            display: none;
+            padding: 0.75rem 1rem;
+            background: #111111;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            color: #a3a3a3;
+            margin-bottom: 1.25rem;
+        }
+
+        .dash-file-name i {
+            margin-right: 6px;
+            color: #22c55e;
+        }
+
+        .btn-match {
+            width: 100%;
+            padding: 1rem;
+            background: #ffffff;
+            color: #000000;
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            border: none;
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: 0.2s ease;
+        }
+
+        .btn-match:hover {
+            background: #e5e5e5;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 25px rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-match:active {
+            transform: translateY(0);
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .action-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 1rem 1.25rem;
+            background: #111111;
+            border: 1px solid #1a1a1a;
+            border-radius: 12px;
+            transition: 0.2s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .action-item:hover {
+            border-color: #404040;
+            background: #1a1a1a;
+            transform: translateX(4px);
+        }
+
+        .action-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            color: #a3a3a3;
+            flex-shrink: 0;
+        }
+
+        .action-info h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 0.15rem;
+        }
+
+        .action-info p {
+            font-size: 0.8rem;
+            color: #737373;
+        }
+
+        .action-arrow {
+            margin-left: auto;
+            color: #525252;
+            font-size: 0.8rem;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .welcome-text h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+
+    <section class="dashboard-section">
+        <div class="dashboard-container">
+            <!-- Header -->
+            <div class="dashboard-header">
+                <div class="welcome-text">
+                    <h1>Welcome, <%= userName %> 👋</h1>
+                    <p>Upload a student photo to identify them instantly</p>
+                </div>
+                <div class="user-badge">
+                    <i class="fas fa-user-circle"></i>
+                    <%= userEmail %>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-images"></i></div>
+                    <div class="stat-value">
+                        <%= studentCount %>
+                    </div>
+                    <div class="stat-label">Students in Database</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-brain"></i></div>
+                    <div class="stat-value">99.8%</div>
+                    <div class="stat-label">Match Accuracy</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-bolt"></i></div>
+                    <div class="stat-value">&lt;3s</div>
+                    <div class="stat-label">Avg Response Time</div>
+                </div>
+            </div>
+
+            <!-- Main Grid -->
+            <div class="dashboard-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start;">
+                
+                <!-- LEFT COLUMN: Alerts & History (8 columns effectively) -->
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    
+                    <!-- Alerts Panel -->
+                    <div class="dash-card">
+                        <div class="dash-card-header" style="border-bottom: 1px solid #262626; padding-bottom: 10px; margin-bottom: 10px;">
+                            <i class="fas fa-bell" style="color: #ef4444;"></i>
+                            <h2>Recent Alerts</h2>
+                        </div>
+                        <div id="alertsPanelContainer" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px;">
+                            <div style="text-align: center; color: #737373; font-size: 0.9rem; padding: 20px;">No alerts triggered yet.</div>
+                        </div>
+                    </div>
+
+                    <!-- History Panel -->
+                    <div class="dash-card">
+                        <div class="dash-card-header" style="border-bottom: 1px solid #262626; padding-bottom: 10px; margin-bottom: 10px;">
+                            <i class="fas fa-history" style="color: #6366f1;"></i>
+                            <h2>Detection History</h2>
+                        </div>
+                        <div id="historyPanelContainer" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px;">
+                            <div style="text-align: center; color: #737373; font-size: 0.9rem; padding: 20px;">No detections recorded yet.</div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- RIGHT COLUMN: Quick Actions (4 columns effectively) -->
+                <div class="dash-card" style="position: sticky; top: 20px;">
+                    <div class="dash-card-header">
+                        <i class="fas fa-compass"></i>
+                        <h2>Quick Actions</h2>
+                    </div>
+
+                    <div class="quick-actions" style="display: flex; flex-direction: column; gap: 10px;">
+                        <a href="/#upload" class="action-item" style="padding: 16px;">
+                            <div class="action-icon"><i class="fas fa-camera"></i></div>
+                            <div class="action-info">
+                                <h3>Upload & Match</h3>
+                                <p>Identify a student from the home page</p>
+                            </div>
+                            <i class="fas fa-chevron-right action-arrow"></i>
+                        </a>
+
+                        <a href="/add-student" class="action-item" style="padding: 16px;">
+                            <div class="action-icon"><i class="fas fa-user-plus"></i></div>
+                            <div class="action-info">
+                                <h3>Register Student</h3>
+                                <p>Add a new face and info to the cloud</p>
+                            </div>
+                            <i class="fas fa-chevron-right action-arrow"></i>
+                        </a>
+
+                        <a href="/about" class="action-item" style="padding: 16px;">
+                            <div class="action-icon"><i class="fas fa-info-circle"></i></div>
+                            <div class="action-info">
+                                <h3>About System</h3>
+                                <p>Learn how the AI matching works</p>
+                            </div>
+                            <i class="fas fa-chevron-right action-arrow"></i>
+                        </a>
+
+                        <a href="/contact" class="action-item" style="padding: 16px;">
+                            <div class="action-icon"><i class="fas fa-headset"></i></div>
+                            <div class="action-info">
+                                <h3>Get Support</h3>
+                                <p>Contact the administration team</p>
+                            </div>
+                            <i class="fas fa-chevron-right action-arrow"></i>
+                        </a>
+
+                        <a href="/auth/logout" class="action-item" style="padding: 16px;">
+                            <div class="action-icon"><i class="fas fa-sign-out-alt"></i></div>
+                            <div class="action-info">
+                                <h3>Sign Out</h3>
+                                <p>Logout from your account</p>
+                            </div>
+                            <i class="fas fa-chevron-right action-arrow"></i>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // --------------------------------------------------------
+        // DASHBOARD STATIC STATE
+        // --------------------------------------------------------
+        // Dashboard history is populated by the backend EJS payload 
+        // Realtime events can be pushed here later if SSE is integrated
+        
+        let alertHistory = <%- JSON.stringify(alerts || []) %>;
+        let detectionHistory = <%- JSON.stringify(detections || []) %>;
+
+        function updateHistoryUI() {
+            const histContainer = document.getElementById('historyPanelContainer');
+            if (!histContainer) return;
+            
+            if (detectionHistory.length === 0) {
+                histContainer.innerHTML = '<div style="text-align: center; color: #737373; font-size: 0.9rem; padding: 20px;">No detections recorded yet.</div>';
+            } else {
+                histContainer.innerHTML = detectionHistory.map(d => `
+                    <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; font-size: 0.85rem; border: 1px solid #262626;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span style="font-weight: 600; color: #fff; font-size: 1rem;">${d.matched_identity || 'No Match'}</span>
+                            <span style="color: #737373;">${new Date(d.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                        <div style="color: #a3a3a3; display: flex; justify-content: space-between;">
+                            <span>Conf: ${d.confidence}%</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function updateAlertsUI() {
+            const alertsContainer = document.getElementById('alertsPanelContainer');
+            if (!alertsContainer) return;
+            
+            if (alertHistory.length === 0) {
+                alertsContainer.innerHTML = '<div style="text-align: center; color: #737373; font-size: 0.9rem; padding: 20px;">No alerts triggered yet.</div>';
+            } else {
+                alertsContainer.innerHTML = alertHistory.map(a => {
+                    const threatColors = {
+                        "LOW": "color: #22c55e",
+                        "MEDIUM": "color: #eab308",
+                        "HIGH": "color: #f97316",
+                        "CRITICAL": "color: #ef4444"
+                    };
+                    return `
+                    <div style="background: rgba(239, 68, 68, 0.05); padding: 15px; border-radius: 8px; font-size: 0.85rem; border: 1px solid rgba(239, 68, 68, 0.2);">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span style="font-weight: 600; color: #fff; font-size: 1rem;"><i class="fas fa-exclamation-triangle" style="color: #ef4444; margin-right: 5px;"></i>${a.matched_identity || 'Unknown'}</span>
+                            <span style="color: #737373;">${new Date(a.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                        <div style="color: #a3a3a3; display: flex; justify-content: space-between;">
+                            <span style="font-weight: 700; ${threatColors[a.threatLevel || 'HIGH'] || ''}">${a.threatLevel || 'HIGH'} Threat</span>
+                        </div>
+                    </div>
+                `}).join('');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateHistoryUI();
+            updateAlertsUI();
+        });
+    </script>
+    <%- include('partials/footer') %>

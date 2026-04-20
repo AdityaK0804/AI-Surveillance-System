@@ -1,0 +1,555 @@
+<%- include('partials/header', { title: 'Scanning — Crescent College' }) %>
+
+    <style>
+        /* Scanning Animation Styles - Black & White Theme */
+        .scanning-section {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 120px 5% 80px;
+            background: #000000;
+        }
+
+        .scanning-container {
+            text-align: center;
+            max-width: 500px;
+        }
+
+        .scanning-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+            color: #ffffff;
+        }
+
+        .scanning-subtitle {
+            color: #a3a3a3;
+            margin-bottom: 2rem;
+        }
+
+        .image-scanner {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            margin: 0 auto 2rem;
+            border-radius: 20px;
+            overflow: hidden;
+            background: #0a0a0a;
+            border: 2px solid #262626;
+        }
+
+        .uploaded-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: grayscale(100%);
+        }
+
+        /* Scanning Line Animation */
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg,
+                    transparent,
+                    #ffffff,
+                    #ffffff,
+                    #ffffff,
+                    transparent);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5), 0 0 30px rgba(255, 255, 255, 0.3);
+            animation: scan 2s ease-in-out infinite;
+        }
+
+        @keyframes scan {
+
+            0%,
+            100% {
+                top: 0;
+                opacity: 1;
+            }
+
+            50% {
+                top: calc(100% - 3px);
+                opacity: 0.8;
+            }
+        }
+
+        /* Corner Brackets */
+        .corner {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border-color: #ffffff;
+            border-style: solid;
+        }
+
+        .corner-tl {
+            top: 10px;
+            left: 10px;
+            border-width: 2px 0 0 2px;
+            animation: pulse-corner 1.5s ease-in-out infinite;
+        }
+
+        .corner-tr {
+            top: 10px;
+            right: 10px;
+            border-width: 2px 2px 0 0;
+            animation: pulse-corner 1.5s ease-in-out infinite 0.2s;
+        }
+
+        .corner-bl {
+            bottom: 10px;
+            left: 10px;
+            border-width: 0 0 2px 2px;
+            animation: pulse-corner 1.5s ease-in-out infinite 0.4s;
+        }
+
+        .corner-br {
+            bottom: 10px;
+            right: 10px;
+            border-width: 0 2px 2px 0;
+            animation: pulse-corner 1.5s ease-in-out infinite 0.6s;
+        }
+
+        @keyframes pulse-corner {
+
+            0%,
+            100% {
+                opacity: 0.4;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.05);
+            }
+        }
+
+        /* Grid Overlay */
+        .grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+            animation: grid-move 3s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes grid-move {
+            0% {
+                background-position: 0 0;
+            }
+
+            100% {
+                background-position: 20px 20px;
+            }
+        }
+
+        /* Glow Effect */
+        .glow-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            opacity: 0;
+            animation: glow-expand 2s ease-out infinite;
+        }
+
+        .glow-ring:nth-child(2) {
+            animation-delay: 0.5s;
+        }
+
+        .glow-ring:nth-child(3) {
+            animation-delay: 1s;
+        }
+
+        @keyframes glow-expand {
+            0% {
+                width: 100px;
+                height: 100px;
+                opacity: 0.6;
+            }
+
+            100% {
+                width: 300px;
+                height: 300px;
+                opacity: 0;
+            }
+        }
+
+        /* Progress Section */
+        .progress-section {
+            margin-bottom: 2rem;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 4px;
+            background: #1a1a1a;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #ffffff;
+            border-radius: 10px;
+            animation: progress 3s ease-in-out infinite;
+        }
+
+        @keyframes progress {
+            0% {
+                width: 0%;
+            }
+
+            50% {
+                width: 70%;
+            }
+
+            80% {
+                width: 90%;
+            }
+
+            100% {
+                width: 95%;
+            }
+        }
+
+        /* Status Steps */
+        .status-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            text-align: left;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+
+        .status-step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.75rem 1rem;
+            background: #0a0a0a;
+            border-radius: 10px;
+            border: 1px solid #262626;
+            opacity: 0.4;
+            transform: translateX(-10px);
+            transition: all 0.3s ease;
+        }
+
+        .status-step.active {
+            opacity: 1;
+            transform: translateX(0);
+            border-color: #525252;
+            background: #111111;
+        }
+
+        .status-step.completed {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .status-step.completed .step-icon {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        .step-icon {
+            width: 28px;
+            height: 28px;
+            background: #404040;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            color: #ffffff;
+            flex-shrink: 0;
+        }
+
+        .step-icon.loading {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .step-text {
+            font-size: 0.9rem;
+            color: #737373;
+        }
+
+        .status-step.active .step-text {
+            color: #ffffff;
+        }
+
+        /* Data Points Animation */
+        .data-points {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .data-point {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #ffffff;
+            border-radius: 50%;
+            opacity: 0;
+            animation: data-pulse 2s ease-in-out infinite;
+        }
+
+        .data-point:nth-child(1) {
+            top: 30%;
+            left: 25%;
+            animation-delay: 0s;
+        }
+
+        .data-point:nth-child(2) {
+            top: 30%;
+            left: 75%;
+            animation-delay: 0.3s;
+        }
+
+        .data-point:nth-child(3) {
+            top: 45%;
+            left: 50%;
+            animation-delay: 0.6s;
+        }
+
+        .data-point:nth-child(4) {
+            top: 60%;
+            left: 35%;
+            animation-delay: 0.9s;
+        }
+
+        .data-point:nth-child(5) {
+            top: 60%;
+            left: 65%;
+            animation-delay: 1.2s;
+        }
+
+        .data-point:nth-child(6) {
+            top: 75%;
+            left: 50%;
+            animation-delay: 1.5s;
+        }
+
+        @keyframes data-pulse {
+
+            0%,
+            100% {
+                opacity: 0;
+                transform: scale(0);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Floating Text */
+        .scanning-info {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1.5rem;
+            font-size: 0.85rem;
+            color: #525252;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .info-item i {
+            color: #737373;
+        }
+    </style>
+
+    <section class="scanning-section">
+        <div class="scanning-container">
+            <h1 class="scanning-title">Analyzing Image</h1>
+            <p class="scanning-subtitle">Please wait while our AI processes your photo</p>
+
+            <div class="image-scanner">
+                <img src="<%= uploadedImage %>" alt="Uploaded Image" class="uploaded-preview" id="preview-image">
+
+                <!-- Grid Overlay -->
+                <div class="grid-overlay"></div>
+
+                <!-- Scan Line -->
+                <div class="scan-line"></div>
+
+                <!-- Corner Brackets -->
+                <div class="corner corner-tl"></div>
+                <div class="corner corner-tr"></div>
+                <div class="corner corner-bl"></div>
+                <div class="corner corner-br"></div>
+
+                <!-- Glow Rings -->
+                <div class="glow-ring"></div>
+                <div class="glow-ring"></div>
+                <div class="glow-ring"></div>
+
+                <!-- Data Points (Facial landmarks) -->
+                <div class="data-points">
+                    <div class="data-point"></div>
+                    <div class="data-point"></div>
+                    <div class="data-point"></div>
+                    <div class="data-point"></div>
+                    <div class="data-point"></div>
+                    <div class="data-point"></div>
+                </div>
+            </div>
+
+            <div class="progress-section">
+                <div class="progress-bar-container">
+                    <div class="progress-bar"></div>
+                </div>
+
+                <div class="status-steps">
+                    <div class="status-step" id="step-1">
+                        <div class="step-icon"><i class="fas fa-image"></i></div>
+                        <span class="step-text">Preprocessing image...</span>
+                    </div>
+                    <div class="status-step" id="step-2">
+                        <div class="step-icon"><i class="fas fa-user"></i></div>
+                        <span class="step-text">Detecting face...</span>
+                    </div>
+                    <div class="status-step" id="step-3">
+                        <div class="step-icon"><i class="fas fa-brain"></i></div>
+                        <span class="step-text">Extracting features...</span>
+                    </div>
+                    <div class="status-step" id="step-4">
+                        <div class="step-icon"><i class="fas fa-search"></i></div>
+                        <span class="step-text">Matching against database...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="scanning-info">
+                <div class="info-item">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Secure</span>
+                </div>
+                <div class="info-item">
+                    <i class="fas fa-bolt"></i>
+                    <span>AI-Powered</span>
+                </div>
+                <div class="info-item">
+                    <i class="fas fa-lock"></i>
+                    <span>Private</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        const matchId = '<%= matchId %>';
+        const steps = document.querySelectorAll('.status-step');
+        let currentStep = 0;
+        let pollInterval;
+        let isRedirecting = false;
+
+        // Animate status steps
+        function animateSteps() {
+            if (currentStep < steps.length) {
+                if (currentStep > 0) {
+                    steps[currentStep - 1].classList.remove('active');
+                    steps[currentStep - 1].classList.add('completed');
+                    steps[currentStep - 1].querySelector('.step-icon').innerHTML = '<i class="fas fa-check"></i>';
+                    steps[currentStep - 1].querySelector('.step-icon').classList.remove('loading');
+                }
+
+                steps[currentStep].classList.add('active');
+                steps[currentStep].querySelector('.step-icon').classList.add('loading');
+
+                currentStep++;
+
+                if (currentStep < steps.length) {
+                    setTimeout(animateSteps, 1500);
+                }
+            }
+        }
+
+        // Poll for match completion
+        function checkMatchStatus() {
+            if (isRedirecting) return;
+            
+            fetch(`/api/match-status/${matchId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.ready && !isRedirecting) {
+                        isRedirecting = true;
+                        completeAllSteps();
+                        setTimeout(() => {
+                            window.location.href = `/results/${matchId}`;
+                        }, 800);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error checking status:', err);
+                });
+        }
+
+        function completeAllSteps() {
+            clearInterval(pollInterval);
+
+            steps.forEach((step, index) => {
+                setTimeout(() => {
+                    step.classList.remove('active');
+                    step.classList.add('completed');
+                    step.querySelector('.step-icon').classList.remove('loading');
+                    step.querySelector('.step-icon').innerHTML = '<i class="fas fa-check"></i>';
+                }, index * 100);
+            });
+        }
+
+        // Start animations and polling
+        setTimeout(animateSteps, 500);
+
+        setTimeout(() => {
+            pollInterval = setInterval(checkMatchStatus, 1000);
+        }, 2000);
+
+        // Fallback: redirect after 3 minutes max (slower laptops need more time)
+        setTimeout(() => {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                window.location.href = `/results/${matchId}`;
+            }
+        }, 180000); // 3 minutes
+    </script>
+
+    <%- include('partials/footer') %>

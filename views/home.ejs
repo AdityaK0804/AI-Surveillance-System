@@ -1,0 +1,883 @@
+<%- include('partials/header', { title: 'Crescent College — Student Image Matching System' }) %>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="hero-badge">Crescent College</div>
+        <h1 class="hero-title">
+            Student Image Matching for <span class="highlight">Quick Identification</span>
+        </h1>
+        <p class="hero-description">
+            Upload a student photo and instantly identify them using our AI-powered matching system.
+            Fast, accurate verification for Crescent College administration and staff.
+        </p>
+        <div class="hero-cta">
+            <a href="#upload" class="btn-primary">
+                Start Matching
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+            </a>
+            <a href="/about" class="btn-secondary">
+                Learn More
+            </a>
+        </div>
+    </section>
+
+    <!-- MATCH NOW SECTION (Dual Mode) -->
+    <section class="upload-section" id="upload" style="background: var(--bg-dark);">
+        <div class="upload-card" id="mainUploadCard" style="background: transparent; border: 1px solid #262626; box-shadow: none; border-radius: 16px; max-width: 450px; width: 100%; transition: max-width 0.4s ease; margin: 0 auto; padding: 1.5rem;">
+            <div id="uploadHeader">
+                <div class="upload-icon" style="width: 46px; height: 46px; font-size: 1.2rem; margin-bottom: 1rem;"><i class="fas fa-search"></i></div>
+                <h2 class="upload-title" style="font-size: 1.4rem;">Match a Student</h2>
+                <p class="upload-subtitle" id="matchSubtitle" style="margin-bottom: 1rem;">Upload a photo or use live camera</p>
+            </div>
+            
+            <!-- Mode Toggle -->
+            <div id="matchModeToggle" style="display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid #404040; padding-bottom: 15px;">
+                <button type="button" class="btn-match active-mode" style="flex: 1; font-size: 1rem; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; background: #6366f1; color: #fff; border: 1px solid transparent;" id="btnModeImage">
+                    <i class="fas fa-image"></i> Image Upload
+                </button>
+                <button type="button" class="btn-match" style="flex: 1; font-size: 1rem; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; background: #262626; color: #a3a3a3; border: 1px solid #404040;" id="btnModeLive">
+                    <i class="fas fa-video"></i> Live Camera
+                </button>
+            </div>
+
+            <!-- VIEW 1: UPLOAD & LIVE FORM -->
+            <div id="matchInputView">
+                <!-- Image Upload Mode -->
+                <div id="imageMatchSection">
+                    <form id="imageMatchForm" class="upload-form">
+                        <div class="file-input-wrapper" id="uploadArea" style="width: 240px; height: 240px; margin: 0 auto; border-radius: 16px; position: relative;">
+                            <input type="file" name="image" id="imageInput" accept="image/*" required style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 5;">
+                            <div class="file-input-content" style="position: relative; z-index: 1;">
+                                <div class="file-input-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                                <div class="file-input-text" id="uploadText">Drop an image or click</div>
+                                <div class="file-input-hint">JPG, PNG • Max 10MB</div>
+                            </div>
+                            <!-- Image Preview Frame -->
+                            <img id="imgUploadPreview" onclick="document.getElementById('imageInput').click()" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; position: absolute; top: 0; left: 0; z-index: 10; cursor: pointer; transition: 0.3s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Click to upload another image" />
+                        </div>
+                        <div id="fileName" style="display: none; margin-bottom: 15px; color: #a3a3a3; font-size: 0.9rem;">
+                            <i class="fas fa-check-circle" style="color: #22c55e;"></i> <span id="fileNameText"></span>
+                        </div>
+                        <button type="submit" class="btn-upload" id="btnMatchImage">
+                            <i class="fas fa-search"></i> Analyze Image
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Live Camera Mode -->
+                <div id="liveMatchSection" style="display: none; text-align: center;">
+                    <div style="width: 240px; height: 240px; border-radius: 16px; overflow: hidden; position: relative; background: #000; border: 2px dashed #404040; margin: 0 auto 15px auto;">
+                        <video id="liveVideo" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; display: block;"></video>
+                        <canvas id="liveCanvas" style="display: none;"></canvas>
+                        <div id="cameraPlaceholder" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #525252;">
+                            <i class="fas fa-video-slash" style="font-size: 3rem; margin-bottom: 15px;"></i>
+                            <span style="font-size: 1rem;">Camera stream stopped</span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-upload" id="btnToggleCamera" style="background: transparent; border: 1px solid #525252; color: #fff; max-width: 280px; margin: 0 auto;">
+                        <i class="fas fa-camera" style="margin-right: 6px;"></i> Start Camera
+                    </button>
+                </div>
+            </div>
+
+            <!-- VIEW 2: ANIMATION SEQUENCE -->
+            <div id="animationView" style="display: none; text-align: center; padding: 10px 0 20px 0;">
+                <h3 style="color: #fff; font-size: 1.5rem; margin-bottom: 5px; font-weight: 700;">Analyzing Image</h3>
+                <p style="color: #a3a3a3; font-size: 0.9rem; margin-bottom: 25px;">Please wait while our AI processes your photo</p>
+                
+                <div style="width: 150px; height: 150px; margin: 0 auto 25px auto; position: relative; border-radius: 12px; overflow: hidden; background: #000;">
+                    <!-- Corners -->
+                    <div style="position: absolute; top: 10px; left: 10px; width: 20px; height: 20px; border-top: 3px solid rgba(255,255,255,0.8); border-left: 3px solid rgba(255,255,255,0.8); border-top-left-radius: 8px; z-index: 10;"></div>
+                    <div style="position: absolute; top: 10px; right: 10px; width: 20px; height: 20px; border-top: 3px solid rgba(255,255,255,0.8); border-right: 3px solid rgba(255,255,255,0.8); border-top-right-radius: 8px; z-index: 10;"></div>
+                    <div style="position: absolute; bottom: 10px; left: 10px; width: 20px; height: 20px; border-bottom: 3px solid rgba(255,255,255,0.8); border-left: 3px solid rgba(255,255,255,0.8); border-bottom-left-radius: 8px; z-index: 10;"></div>
+                    <div style="position: absolute; bottom: 10px; right: 10px; width: 20px; height: 20px; border-bottom: 3px solid rgba(255,255,255,0.8); border-right: 3px solid rgba(255,255,255,0.8); border-bottom-right-radius: 8px; z-index: 10;"></div>
+
+                    <img id="animPreviewImg" style="width: 100%; height: 100%; object-fit: cover; filter: grayscale(50%) contrast(1.1);" />
+                    <div class="scan-line" style="position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: rgba(255,255,255,0.8); box-shadow: 0 0 10px rgba(255,255,255,0.5); animation: scan 2s infinite linear; z-index: 15;"></div>
+                </div>
+
+                <div style="width: 100px; height: 3px; background: rgba(255,255,255,0.2); margin: 0 auto 25px auto; border-radius: 2px;"></div>
+
+                <div style="display: flex; flex-direction: column; gap: 8px; max-width: 250px; margin: 0 auto; text-align: left;">
+                    <div class="anim-step-box" id="animStep1"><i class="fas fa-spinner fa-spin"></i> Preprocessing image...</div>
+                    <div class="anim-step-box" id="animStep2"><i class="far fa-circle"></i> Detecting face...</div>
+                    <div class="anim-step-box" id="animStep3"><i class="far fa-circle"></i> Extracting features...</div>
+                    <div class="anim-step-box" id="animStep4"><i class="far fa-circle"></i> Matching against database...</div>
+                </div>
+            </div>
+
+            <!-- VIEW 3: 3-COLUMN RESULT UI -->
+            <div id="resultView" style="display: none; width: 100%; max-width: 820px; margin: 0 auto; text-align: center; padding: 0 0 10px 0;">
+                <h2 style="font-size: 1.8rem; color: #fff; font-weight: 700; margin-bottom: 5px;">Student Match Results</h2>
+                <p style="color: #a3a3a3; font-size: 0.9rem; margin-bottom: 25px;">Here's the student information we found</p>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; align-items: stretch;">
+                    
+                    <!-- LEFT: Uploaded Photo -->
+                    <div class="res-card">
+                        <h4 style="color: #fff; font-size: 0.95rem; margin-bottom: 20px; display: flex; justify-content: center; align-items: center; gap: 8px;">
+                            <i class="fas fa-upload" style="color: #a3a3a3;"></i> Uploaded Photo
+                        </h4>
+                        <div style="width: 100%; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: #171717;">
+                            <img id="resultLeftImg" style="width: 100%; height: 100%; object-fit: cover; filter: grayscale(100%);" />
+                        </div>
+                    </div>
+
+                    <!-- CENTER: Target Details -->
+                    <div class="res-card" style="display: flex; flex-direction: column; position: relative;">
+                        <h4 style="color: #fff; font-size: 0.95rem; margin-bottom: 15px; display: flex; justify-content: flex-start; align-items: center; gap: 8px;">
+                            <i class="fas fa-user" style="color: #a3a3a3;"></i> Student Info
+                        </h4>
+
+                        <div class="info-row" style="padding: 12px 0;">
+                            <span class="info-label">Name</span>
+                            <span class="info-value" id="resIdentity" style="font-weight: 700; color: #fff;"></span>
+                        </div>
+                        <div class="info-row" style="padding: 12px 0;">
+                            <span class="info-label">RRN</span>
+                            <span class="info-value" id="resRRN"></span>
+                        </div>
+                        <div class="info-row" style="padding: 12px 0;">
+                            <span class="info-label">Department</span>
+                            <span class="info-value" id="resDept"></span>
+                        </div>
+                        <div class="info-row" style="padding: 12px 0;">
+                            <span class="info-label">Year</span>
+                            <span class="info-value" id="resYear"></span>
+                        </div>
+                        <div class="info-row" style="border-bottom: none; padding: 12px 0;">
+                            <span class="info-label">Section</span>
+                            <span class="info-value" id="resSection"></span>
+                        </div>
+
+                        <div style="margin-top: auto; padding-top: 15px;">
+                            <div style="background: #ffffff; border-radius: 12px; padding: 15px; text-align: center;">
+                                <div style="color: #525252; font-size: 0.75rem; margin-bottom: 4px; font-weight: 600; text-transform: uppercase;">Confidence</div>
+                                <div style="color: #000; font-size: 2.2rem; font-weight: 800; line-height: 1;" id="resConf">--%</div>
+                                <div id="resThreat" style="display:none;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT: Database Match -->
+                    <div class="res-card">
+                        <h4 style="color: #fff; font-size: 0.95rem; margin-bottom: 20px; display: flex; justify-content: center; align-items: center; gap: 8px;">
+                            <i class="fas fa-check-circle" style="color: #22c55e;"></i> Matched Photo
+                        </h4>
+                        <div style="width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center;">
+                            <div style="background: #ffffff; padding: 10px; padding-bottom: 25px; border-radius: 4px; display: inline-block; width: 100%; height: 100%;">
+                                <img id="resultRightImg" style="width: 100%; height: 100%; object-fit: cover; display: none;" />
+                                <i id="resultRightIcon" class="fas fa-user-circle" style="font-size: 4.5rem; color: #d4d4d4; display: block; margin-top: 35%; text-align: center;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 40px; text-align: center;">
+                    <button class="btn-secondary" id="btnMatchAnother" style="background: transparent; border: 1px solid #404040; color: #fff; padding: 12px 24px; border-radius: 30px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: 0.3s;">
+                        <i class="fas fa-arrow-left" style="margin-right: 6px;"></i> Match Another Student
+                    </button>
+                    <div id="alertTriggeredBanner" style="display: none; margin-left: 15px; font-size: 0.85rem; color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 8px 12px; border-radius: 6px; display: inline-block;">
+                        <i class="fas fa-bell"></i> WhatsApp Alert Triggered
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Scanning Animation CSS -->
+    <style>
+        @keyframes scan {
+            0% { top: 0; }
+            50% { top: 100%; }
+            100% { top: 0; }
+        }
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* NEW UI STYLES FOR EXACT MATCH */
+        .anim-step-box {
+            background: #121212;
+            border: 1px solid #262626;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #737373;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+        }
+        .anim-step-box.active {
+            color: #d4d4d4;
+        }
+        .anim-step-box i {
+            font-size: 1.1rem;
+        }
+        
+        .res-card {
+            background: #0a0a0a;
+            border: 1px solid #262626;
+            border-radius: 16px;
+            padding: 24px;
+            text-align: left;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid #262626;
+            color: #a3a3a3;
+            font-size: 0.95rem;
+        }
+        .info-label {
+            color: #737373;
+        }
+        .info-value {
+            color: #fff;
+            font-weight: 500;
+        }
+    </style>
+
+    <!-- Features Section -->
+    <section class="features-section" id="features">
+        <div class="section-header">
+            <span class="section-badge">Features</span>
+            <h2 class="section-title">Why use our matching system?</h2>
+            <p class="section-description">
+                Built specifically for Crescent College to streamline student identification.
+            </p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3 class="feature-title">Instant Results</h3>
+                <p class="feature-description">
+                    Get student information in under a second. No more manual searching through records.
+                </p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎯</div>
+                <h3 class="feature-title">High Accuracy</h3>
+                <p class="feature-description">
+                    99.8% accuracy rate using advanced facial recognition technology.
+                </p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h3 class="feature-title">Secure & Private</h3>
+                <p class="feature-description">
+                    All student data is processed securely within college systems.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="how-it-works-section" id="how-it-works">
+        <div class="section-header">
+            <span class="section-badge">How It Works</span>
+            <h2 class="section-title">Three simple steps</h2>
+            <p class="section-description">
+                Identify any student in seconds.
+            </p>
+        </div>
+        <div class="steps-container">
+            <div class="step-card">
+                <div class="step-number">1</div>
+                <h3 class="step-title">Upload Photo</h3>
+                <p class="step-description">
+                    Select or drag a student photo to upload.
+                </p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">2</div>
+                <h3 class="step-title">AI Analysis</h3>
+                <p class="step-description">
+                    Our system matches against the student database.
+                </p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">3</div>
+                <h3 class="step-title">View Results</h3>
+                <p class="step-description">
+                    Get complete student details instantly.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="cta-container">
+            <h2 class="cta-title">Ready to identify a student?</h2>
+            <p class="cta-description">
+                Upload a photo now and get instant results.
+            </p>
+            <div class="cta-buttons">
+                <a href="#upload" class="btn-white">
+                    Start Matching
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // ----------------------------------------------------
+            // 1. UI Setup & Mode Switching
+            // ----------------------------------------------------
+            const fileInput = document.getElementById('imageInput');
+            const uploadArea = document.getElementById('uploadArea');
+            const uploadText = document.getElementById('uploadText');
+            const fileNameDiv = document.getElementById('fileName');
+            const fileNameText = document.getElementById('fileNameText');
+            const imgPreview = document.getElementById('imgUploadPreview');
+            const animPreviewImg = document.getElementById('animPreviewImg');
+            
+            // Mode Toggles
+            const btnModeImage = document.getElementById('btnModeImage');
+            const btnModeLive = document.getElementById('btnModeLive');
+            const secImage = document.getElementById('imageMatchSection');
+            const secLive = document.getElementById('liveMatchSection');
+
+            // Views
+            const viewInput = document.getElementById('matchInputView');
+            const viewAnim = document.getElementById('animationView');
+            const viewResult = document.getElementById('resultView');
+
+            function setMatchMode(mode) {
+                if (mode === 'image') {
+                    secImage.style.display = 'block';
+                    secLive.style.display = 'none';
+                    btnModeImage.style.background = '#6366f1';
+                    btnModeImage.style.color = '#fff';
+                    btnModeImage.style.borderColor = 'transparent';
+                    btnModeLive.style.background = '#262626';
+                    btnModeLive.style.color = '#a3a3a3';
+                    btnModeLive.style.borderColor = '#404040';
+                    stopCamera();
+                } else {
+                    secImage.style.display = 'none';
+                    secLive.style.display = 'block';
+                    btnModeLive.style.background = '#6366f1';
+                    btnModeLive.style.color = '#fff';
+                    btnModeLive.style.borderColor = 'transparent';
+                    btnModeImage.style.background = '#262626';
+                    btnModeImage.style.color = '#a3a3a3';
+                    btnModeImage.style.borderColor = '#404040';
+                    startCamera();
+                }
+            }
+
+            btnModeImage.addEventListener('click', () => setMatchMode('image'));
+            btnModeLive.addEventListener('click', () => setMatchMode('live'));
+
+            // File Selection Logic
+            if (fileInput && uploadArea) {
+                fileInput.addEventListener('change', function (e) {
+                    if (e.target.files && e.target.files.length > 0) {
+                        const file = e.target.files[0];
+                        uploadArea.classList.add('file-selected');
+                        
+                        // Hide standard inputs
+                        if (uploadText) uploadText.style.display = 'none';
+                        const icon = uploadArea.querySelector('.file-input-icon');
+                        if (icon) icon.style.display = 'none';
+                        document.querySelector('.file-input-hint').style.display = 'none';
+
+                        // Show FileName
+                        if (fileNameDiv) fileNameDiv.style.display = 'block';
+                        if (fileNameText) fileNameText.textContent = file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)';
+                        
+                        // Set Previews
+                        const objUrl = URL.createObjectURL(file);
+                        imgPreview.src = objUrl;
+                        imgPreview.style.display = 'block';
+                        animPreviewImg.src = objUrl;
+                        document.getElementById('resultLeftImg').src = objUrl;
+                    }
+                });
+
+                uploadArea.addEventListener('dragover', function (e) {
+                    e.preventDefault();
+                    uploadArea.style.borderColor = '#6366f1';
+                    uploadArea.style.background = 'rgba(99, 102, 241, 0.15)';
+                });
+
+                uploadArea.addEventListener('dragleave', function (e) {
+                    e.preventDefault();
+                    if (!uploadArea.classList.contains('file-selected')) {
+                        uploadArea.style.borderColor = '';
+                        uploadArea.style.background = '';
+                    }
+                });
+            }
+
+            // ----------------------------------------------------
+            // 2. Animation Engine
+            // ----------------------------------------------------
+            async function triggerScanningAnimation(startFetchCallback) {
+                if(document.getElementById('uploadHeader')) {
+                    document.getElementById('uploadHeader').style.display = 'none';
+                }
+                document.getElementById('matchModeToggle').style.display = 'none';
+                document.getElementById('matchSubtitle').style.display = 'none';
+                viewInput.style.display = 'none';
+                viewAnim.style.display = 'block';
+                viewResult.style.display = 'none';
+
+                // Reset step colors
+                const step1 = document.getElementById('animStep1');
+                const step2 = document.getElementById('animStep2');
+                const step3 = document.getElementById('animStep3');
+                const step4 = document.getElementById('animStep4');
+
+                step1.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preprocessing image...';
+                step1.classList.add('active');
+                step2.innerHTML = '<i class="far fa-circle" style="color: #525252"></i> Detecting face...';
+                step2.classList.remove('active');
+                step3.innerHTML = '<i class="far fa-circle" style="color: #525252"></i> Extracting features...';
+                step3.classList.remove('active');
+                step4.innerHTML = '<i class="far fa-circle" style="color: #525252"></i> Matching against database...';
+                step4.classList.remove('active');
+
+                // Trigger network fetch implicitly simultaneously while steps animate
+                const fetchPromise = startFetchCallback();
+
+                await new Promise(resolve => setTimeout(resolve, 600));
+
+                step1.innerHTML = '<i class="fas fa-check-circle" style="color: white"></i> Preprocessing image...';
+                step1.classList.remove('active');
+                step2.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Detecting face...';
+                step2.classList.add('active');
+
+                await new Promise(resolve => setTimeout(resolve, 800));
+
+                step2.innerHTML = '<i class="fas fa-check-circle" style="color: white"></i> Detecting face...';
+                step2.classList.remove('active');
+                step3.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Extracting features...';
+                step3.classList.add('active');
+
+                await new Promise(resolve => setTimeout(resolve, 700));
+
+                step3.innerHTML = '<i class="fas fa-check-circle" style="color: white"></i> Extracting features...';
+                step3.classList.remove('active');
+                step4.innerHTML = '<i class="fas fa-search"></i> Matching against database...';
+                step4.classList.add('active');
+
+                // Await absolute resolution from python backend matching
+                const responseData = await fetchPromise;
+
+                step4.innerHTML = '<i class="fas fa-check-circle" style="color: white"></i> Matching against database...';
+
+                await new Promise(resolve => setTimeout(resolve, 400));
+                
+                // Expand Card and Jump to Results UI
+                document.getElementById('mainUploadCard').style.maxWidth = '820px';
+                viewAnim.style.display = 'none';
+                renderResultUI(responseData);
+            }
+
+            // ----------------------------------------------------
+            // 3. Result UI Rendering
+            // ----------------------------------------------------
+            const threatColors = {
+                "LOW": "background: rgba(34,197,94,0.2); color: #22c55e",
+                "MEDIUM": "background: rgba(234,179,8,0.2); color: #eab308",
+                "HIGH": "background: rgba(249,115,22,0.2); color: #f97316",
+                "CRITICAL": "background: rgba(239,68,68,0.2); color: #ef4444"
+            };
+
+            function renderResultUI(data) {
+                document.getElementById('uploadHeader').style.display = 'none';
+                viewResult.style.display = 'block';
+                viewInput.style.display = 'none';
+                viewAnim.style.display = 'none';
+
+                if (!data.match || data.match === "No Match" || data.error) {
+                    document.getElementById('resIdentity').textContent = data.error ? ("Error: " + data.error) : "No Match Found";
+                    document.getElementById('resRRN').textContent = "RRN: N/A";
+                    document.getElementById('resThreat').style.display = "none";
+                    document.getElementById('resDept').textContent = "-";
+                    document.getElementById('resYear').textContent = "-";
+                    document.getElementById('resSection').textContent = "-";
+                    document.getElementById('resConf').textContent = "-";
+                    
+                    document.getElementById('resultRightImg').style.display = 'none';
+                    document.getElementById('resultRightIcon').style.display = 'block';
+
+                    if (!data.error && (!data.match || data.match === "No Match")) {
+                        // Send WhatsApp Alert for Unknown Match
+                        fetch("/alerts/whatsapp", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                name: "Unknown Individual",
+                                threatLevel: "CRITICAL (Unrecognized)",
+                                confidence: 0,
+                                timestamp: Date.now(),
+                                eventType: "UNAUTHORIZED_MATCH_ATTEMPT"
+                            })
+                        }).then(() => {
+                            const banner = document.getElementById('alertTriggeredBanner');
+                            banner.textContent = "WhatsApp Alert Triggered (Unknown Face)";
+                            banner.style.display = 'inline-block';
+                        });
+                    }
+
+                    return;
+                }
+
+                // Append Data
+                document.getElementById('resIdentity').textContent = data.match;
+                document.getElementById('resThreat').textContent = data.threatLevel || "LOW";
+                document.getElementById('resThreat').style = `font-size: 0.75rem; padding: 4px 10px; border-radius: 12px; font-weight: 700; ${threatColors[data.threatLevel || "LOW"]}`;
+                document.getElementById('resThreat').style.display = "inline-block";
+                
+                document.getElementById('resConf').textContent = ((data.confidence || 0) * 100).toFixed(1) + "%";
+
+                if (data.student) {
+                    document.getElementById('resRRN').textContent = "RRN: " + (data.student.rrn || "-");
+                    document.getElementById('resDept').textContent = data.student.department || "-";
+                    document.getElementById('resYear').textContent = data.student.year || "-";
+                    document.getElementById('resSection').textContent = data.student.section || "-";
+
+                    if (data.student.image) {
+                        const rImg = document.getElementById('resultRightImg');
+                        rImg.src = "/images/" + data.student.image.split('\\').pop().split('/').pop();
+                        rImg.style.display = 'block';
+                        document.getElementById('resultRightIcon').style.display = 'none';
+                    }
+                }
+
+                // WhatsApp alerts via route trigger manually if tracking
+                if (data.threatLevel === "HIGH" || data.threatLevel === "CRITICAL" || data.classification === "Watchlist") {
+                    fetch("/alerts/whatsapp", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            name: data.match,
+                            threatLevel: data.threatLevel,
+                            confidence: data.confidence,
+                            timestamp: Date.now(),
+                            eventType: "STATIC_UPLOAD"
+                        })
+                    }).then(() => {
+                        const banner = document.getElementById('alertTriggeredBanner');
+                        banner.style.display = 'inline-block';
+                    });
+                }
+            }
+
+            // Reset Flow
+            document.getElementById('btnMatchAnother').addEventListener('click', () => {
+                document.getElementById('mainUploadCard').style.maxWidth = '450px';
+                document.getElementById('uploadHeader').style.display = 'block';
+                document.getElementById('matchModeToggle').style.display = 'flex';
+                document.getElementById('matchSubtitle').style.display = 'block';
+                document.getElementById('alertTriggeredBanner').style.display = 'none';
+                viewResult.style.display = 'none';
+                viewInput.style.display = 'block';
+                setMatchMode('image'); // Reset back to default
+            });
+
+            // ----------------------------------------------------
+            // 4. Form Submit
+            // ----------------------------------------------------
+            const form = document.getElementById('imageMatchForm');
+            if (form) {
+                form.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    if (!fileInput.files || fileInput.files.length === 0) return;
+                    const formData = new FormData(form);
+
+                    // Execute sequence
+                    triggerScanningAnimation(async () => {
+                        try {
+                            const res = await fetch("/recognize", { method: "POST", body: formData });
+                            return await res.json();
+                        } catch (err) {
+                            console.error(err);
+                            return { error: "Network Error" };
+                        }
+                    });
+                });
+            }
+
+            // ----------------------------------------------------
+            // 5. Live Camera Processing — Full-width with bounding boxes
+            // ----------------------------------------------------
+            let isCameraRunning = false;
+            let stream = null;
+            let detectionInterval = null;
+            let isProcessingFrame = false;
+            let lastDetections = []; // store latest bbox + label for canvas overlay
+
+            // Override setMatchMode to expand card when switching to live
+            const _origSetMatchMode = setMatchMode;
+            setMatchMode = function(mode) {
+                _origSetMatchMode(mode);
+                const card = document.getElementById('mainUploadCard');
+                if (mode === 'live') {
+                    // Expand the card to full-width live view
+                    card.style.maxWidth = '820px';
+                    card.style.padding = '1.5rem';
+                    buildLiveCameraUI();
+                } else {
+                    // Shrink back to upload card
+                    card.style.maxWidth = '450px';
+                }
+            };
+
+            function buildLiveCameraUI() {
+                const secLive = document.getElementById('liveMatchSection');
+                // Replace the tiny 240x240 box with a full-width layout
+                secLive.innerHTML = `
+                    <div style="position: relative; width: 100%; background: #000; border-radius: 12px; overflow: hidden; border: 1px solid #262626; margin-bottom: 16px;">
+                        <video id="liveVideo" autoplay playsinline muted style="width: 100%; max-height: 480px; display: block; object-fit: cover;"></video>
+                        <canvas id="liveOverlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
+                        <canvas id="liveCanvas" style="display: none;"></canvas>
+                        <div id="cameraPlaceholder" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #525252; background: #0a0a0a;">
+                            <i class="fas fa-video-slash" style="font-size: 4rem; margin-bottom: 15px;"></i>
+                            <span style="font-size: 1rem;">Camera stream stopped</span>
+                        </div>
+                        <!-- Live status badge -->
+                        <div id="liveBadge" style="display:none; position: absolute; top: 12px; left: 12px; background: rgba(239,68,68,0.85); color: #fff; font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 20px; letter-spacing: 0.05em;">
+                            ● LIVE
+                        </div>
+                        <!-- Detection label overlay -->
+                        <div id="liveDetectionLabel" style="display:none; position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.75); color: #fff; font-size: 0.9rem; font-weight: 600; padding: 6px 16px; border-radius: 20px; white-space: nowrap; backdrop-filter: blur(4px);"></div>
+                    </div>
+                    <button type="button" id="btnToggleCamera" style="width: 100%; padding: 12px; background: transparent; border: 1px solid #525252; color: #fff; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: 0.3s;">
+                        <i class="fas fa-camera" style="margin-right: 6px;"></i> Start Camera
+                    </button>
+                `;
+
+                // Re-bind toggle button since we rebuilt the DOM
+                document.getElementById('btnToggleCamera').addEventListener('click', () => {
+                    if (isCameraRunning) stopCamera(); else startCamera();
+                });
+            }
+
+            async function startCamera() {
+                if (isCameraRunning) return;
+                try {
+                    const placeholder = document.getElementById('cameraPlaceholder');
+                    if (placeholder) placeholder.style.display = 'flex';
+
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+                        audio: false
+                    });
+
+                    const video = document.getElementById('liveVideo');
+                    if (video) {
+                        video.srcObject = stream;
+                        await new Promise(resolve => { video.onloadedmetadata = resolve; });
+                        await video.play();
+                    }
+
+                    if (placeholder) placeholder.style.display = 'none';
+
+                    const badge = document.getElementById('liveBadge');
+                    if (badge) badge.style.display = 'block';
+
+                    const btn = document.getElementById('btnToggleCamera');
+                    if (btn) btn.innerHTML = '<i class="fas fa-video-slash" style="margin-right: 6px;"></i> Stop Camera';
+
+                    isCameraRunning = true;
+
+                    // Start overlay draw loop
+                    lastDetections = [];
+                    requestAnimationFrame(drawOverlay);
+
+                    // Show "scanning" indicator immediately
+                    const initLabel = document.getElementById('liveDetectionLabel');
+                    if (initLabel) {
+                        initLabel.style.display = 'block';
+                        initLabel.innerHTML = '<i class="fas fa-circle-notch fa-spin" style="color:#6366f1; margin-right:6px;"></i>Initializing scanner...';
+                    }
+
+                    // Kick off first frame capture after 300ms (camera needs a moment to warm up)
+                    setTimeout(() => {
+                        if (isCameraRunning) processFrame();
+                    }, 300);
+
+                    if (detectionInterval) clearInterval(detectionInterval);
+                    detectionInterval = setInterval(processFrame, 600); // every 600ms
+                } catch (err) {
+                    console.error("Camera error:", err);
+                    const placeholder = document.getElementById('cameraPlaceholder');
+                    if (placeholder) {
+                        placeholder.style.display = 'flex';
+                        placeholder.innerHTML = '<i class="fas fa-exclamation-triangle" style="font-size:3rem; margin-bottom:12px; color:#ef4444;"></i><span style="color:#ef4444;">Camera permission denied</span>';
+                    }
+                }
+            }
+
+            function stopCamera() {
+                if (!isCameraRunning) return;
+                if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+                if (detectionInterval) { clearInterval(detectionInterval); detectionInterval = null; }
+                const video = document.getElementById('liveVideo');
+                if (video) { video.pause(); video.srcObject = null; }
+                const placeholder = document.getElementById('cameraPlaceholder');
+                if (placeholder) placeholder.style.display = 'flex';
+                const badge = document.getElementById('liveBadge');
+                if (badge) badge.style.display = 'none';
+                const label = document.getElementById('liveDetectionLabel');
+                if (label) label.style.display = 'none';
+                const btn = document.getElementById('btnToggleCamera');
+                if (btn) btn.innerHTML = '<i class="fas fa-camera" style="margin-right: 6px;"></i> Start Camera';
+                isCameraRunning = false;
+                lastDetections = [];
+            }
+
+            function drawOverlay() {
+                if (!isCameraRunning) return;
+                requestAnimationFrame(drawOverlay);
+
+                const video = document.getElementById('liveVideo');
+                const canvas = document.getElementById('liveOverlay');
+                if (!video || !canvas || video.videoWidth === 0) return;
+
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Draw bounding boxes for all current detections
+                for (const det of lastDetections) {
+                    if (!det.bbox) continue;
+                    const [x1, y1, x2, y2] = det.bbox;
+
+                    // Box
+                    ctx.strokeStyle = det.matched ? '#22c55e' : '#ef4444';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+
+                    // Corner accents
+                    const cs = 16; // corner size
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    // Top-left
+                    ctx.moveTo(x1, y1 + cs); ctx.lineTo(x1, y1); ctx.lineTo(x1 + cs, y1);
+                    // Top-right
+                    ctx.moveTo(x2 - cs, y1); ctx.lineTo(x2, y1); ctx.lineTo(x2, y1 + cs);
+                    // Bottom-left
+                    ctx.moveTo(x1, y2 - cs); ctx.lineTo(x1, y2); ctx.lineTo(x1 + cs, y2);
+                    // Bottom-right
+                    ctx.moveTo(x2 - cs, y2); ctx.lineTo(x2, y2); ctx.lineTo(x2, y2 - cs);
+                    ctx.stroke();
+
+                    // Label background
+                    const lbl = det.matched ? det.name : "Unknown";
+                    const conf = det.confidence ? ` ${(det.confidence * 100).toFixed(0)}%` : '';
+                    const labelText = lbl + conf;
+                    ctx.font = 'bold 13px Inter, sans-serif';
+                    const tw = ctx.measureText(labelText).width;
+                    ctx.fillStyle = det.matched ? 'rgba(34,197,94,0.85)' : 'rgba(239,68,68,0.85)';
+                    ctx.fillRect(x1, y1 - 28, tw + 16, 24);
+                    ctx.fillStyle = '#fff';
+                    ctx.fillText(labelText, x1 + 8, y1 - 10);
+                }
+            }
+
+            async function processFrame() {
+                if (!isCameraRunning || isProcessingFrame) return;
+
+                const video = document.getElementById('liveVideo');
+                if (!video || video.videoWidth === 0 || video.readyState < 2) return;
+
+                const canvas = document.getElementById('liveCanvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                isProcessingFrame = true;
+
+                canvas.toBlob(async (blob) => {
+                    if (!blob) { isProcessingFrame = false; return; }
+
+                    // Apply blob preview onto results in background
+                    const objUrl = URL.createObjectURL(blob);
+                    document.getElementById('resultLeftImg').src = objUrl;
+
+                    const formData = new FormData();
+                    formData.append('image', blob, `live_${Date.now()}.jpg`);
+
+                    try {
+                        const res = await fetch("/recognize", { method: "POST", body: formData });
+                        const data = await res.json();
+
+                        const label = document.getElementById('liveDetectionLabel');
+
+                        if (data.match && data.match !== "No Match") {
+                            // Update overlay detections
+                            lastDetections = [{
+                                bbox: data.bbox || null,
+                                matched: true,
+                                name: data.match,
+                                confidence: data.confidence
+                            }];
+
+                            if (label) {
+                                label.style.display = 'block';
+                                label.innerHTML = '<i class="fas fa-user-check" style="color:#22c55e; margin-right:6px;"></i>' + data.match + ' — ' + ((data.confidence || 0) * 100).toFixed(1) + '%';
+                            }
+
+                            // After 1.5 seconds of showing the match in overlay, stop and show full results
+                            setTimeout(() => {
+                                if (isCameraRunning) {
+                                    stopCamera();
+                                    document.getElementById('matchModeToggle').style.display = 'none';
+                                    renderResultUI(data);
+                                }
+                            }, 1500);
+
+                        } else if (data.error) {
+                            lastDetections = [];
+                            if (label) {
+                                label.style.display = 'block';
+                                label.innerHTML = '<i class="fas fa-exclamation-circle" style="color:#ef4444; margin-right:6px;"></i>' + data.error;
+                                setTimeout(() => { if(label) label.style.display = 'none'; }, 3000);
+                            }
+                        } else {
+                            // No match — show scanning indicator but keep running
+                            lastDetections = data.bbox ? [{ bbox: data.bbox, matched: false }] : [];
+                            if (label) {
+                                label.style.display = 'block';
+                                label.innerHTML = '<i class="fas fa-search" style="color:#a3a3a3; margin-right:6px;"></i>Scanning...';
+                            }
+                        }
+                    } catch (err) {
+                        console.error("[LiveCamera] fetch error:", err);
+                    } finally {
+                        isProcessingFrame = false;
+                    }
+                }, 'image/jpeg', 0.85);
+            }
+
+            // Smooth scroll
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            });
+
+        });
+    </script>
+    <%- include('partials/footer') %>
