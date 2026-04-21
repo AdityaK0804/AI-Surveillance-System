@@ -313,131 +313,176 @@ def do_match(image_path: str) -> dict:
         except Exception as e:
             return {"matches": [], "error": f"Cannot read image: {e}"}
 
-    # Detect face — try multiple preprocessed variants
-    best_face = None
+    # Detect ALL faces in the frame (not just best one)
+    all_faces = []
     for variant in preprocess_variants(img_bgr):
         try:
             faces = app.get(variant) if app else []
             valid = [f for f in faces if f.det_score >= 0.25]
             if valid:
-                candidate = max(valid, key=lambda f: f.det_score)
-                if best_face is None or candidate.det_score > best_face.det_score:
-                    best_face = candidate
-                if best_face.det_score > 0.7:
-                    break  # Good enough, stop trying
+                # Merge: keep any face not already found (by bbox proximity)
+                for new_face in valid:
+                    is_duplicate = False
+                    for existing in all_faces:
+                        nb = new_face.bbox; eb = existing.bbox
+                        cx_new = (nb[0]+nb[2])/2; cx_ex = (eb[0]+eb[2])/2
+                        cy_new = (nb[1]+nb[3])/2; cy_ex = (eb[1]+eb[3])/2
+                        if abs(cx_new-cx_ex) < 60 and abs(cy_new-cy_ex) < 60:
+                            is_duplicate = True
+                            break
+                    if not is_duplicate:
+                        all_faces.append(new_face)
+                if len(all_faces) >= 1 and all([f.det_score > 0.7 for f in all_faces]):
+                    break
         except:
             continue
 
-    # Last resort: very low threshold
-    if best_face is None:
+    # Last resort: very low threshold on original
+    if not all_faces:
         try:
             faces = app.get(img_bgr) if app else []
-            if faces:
-                best_face = max(faces, key=lambda f: f.det_score)
+            all_faces = [f for f in faces if f.det_score >= 0.15]
         except:
             pass
 
-    if best_face is None:
-        return {"matches": [], "error": "No face detected. Try a clearer photo."}
+    if not all_faces:
+        return {"matches": [], "all_detections": [], "error": "No face detected. Try a clearer photo."}
 
-    query_emb = best_face.embedding
-    det_score = float(best_face.det_score)
-    bbox = best_face.bbox.astype(int).tolist()
+    log(f"Detected {len(all_faces)} face(s) in frame")
 
-    # Quality score
+    # Process each detected face
+    all_face_results = []   # every face with bbox (matched or unknown)
+    matched_results = []    # only faces that matched someone in DB
+
     gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
     lap_var = cv2.Laplacian(gray, cv2.CV_64F).var()
-    quality_score = float(min(lap_var / 300.0, 1.0))
+    frame_quality = float(min(lap_var / 300.0, 1.0))
 
-    log(f"Query: det={det_score:.2f}, quality={quality_score:.2f}")
+    for face_idx, face in enumerate(all_faces):
+        query_emb = face.embedding
+        det_score = float(face.det_score)
+        bbox = face.bbox.astype(int).tolist()
 
-    # Eye-region embedding for heavily occluded faces
-    query_eye_emb = None
-    if det_score < 0.65 or quality_score < 0.5:
-        try:
-            x1, y1, x2, y2 = [int(v) for v in best_face.bbox]
-            eye_h = int((y2-y1)*0.55)
-            eye_crop = img_bgr[max(0,y1):y1+eye_h, max(0,x1):x2]
-            if eye_crop.size > 0 and eye_crop.shape[0] > 20 and app:
-                ec = cv2.resize(eye_crop, (112, 112))
-                ef = app.get(ec)
-                if ef:
-                    query_eye_emb = ef[0].embedding
-                    log("Eye-region embedding extracted")
-        except Exception as e:
-            log(f"Eye emb error: {e}")
-
-    # Adaptive threshold
-    threshold = 0.28
-    if det_score < 0.5: threshold -= 0.04
-    if quality_score < 0.4: threshold -= 0.03
-    threshold = max(threshold, 0.20)
-    log(f"Threshold: {threshold:.3f}")
-
-    # Compare against all stored persons and all their variants
-    matches = []
-    for filename, person_data in _cache.items():
-        variants = person_data.get("variants", [])
-        if not variants:
-            continue
-
-        best_full = -1.0
-        best_eye = -1.0
-
-        for v in variants:
-            if v.get("full") is None:
-                continue
-            fsim = cosine_sim(query_emb, v["full"])
-            if fsim > best_full:
-                best_full = fsim
-            if query_eye_emb is not None and v.get("eye") is not None:
-                esim = cosine_sim(query_eye_emb, v["eye"])
-                if esim > best_eye:
-                    best_eye = esim
-
-        # Weight: occluded → more eye, clear → more full face
-        if best_full < 0.35 and best_eye > 0:
-            final_sim = 0.25 * best_full + 0.75 * best_eye
+        # Per-face quality
+        x1, y1, x2, y2 = [int(v) for v in face.bbox]
+        face_crop = img_bgr[max(0,y1):y2, max(0,x1):x2]
+        if face_crop.size > 0:
+            fg = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
+            face_quality = float(min(cv2.Laplacian(fg, cv2.CV_64F).var() / 300.0, 1.0))
         else:
-            final_sim = best_full
+            face_quality = frame_quality
 
-        stored_qual = person_data.get("quality", 0.8)
-        quality_factor = (quality_score + stored_qual) / 2.0
-        final_confidence = final_sim * (0.75 + 0.25 * quality_factor)
+        # Eye-region embedding for occluded faces
+        query_eye_emb = None
+        if det_score < 0.65 or face_quality < 0.5:
+            try:
+                eye_h = int((y2-y1)*0.55)
+                eye_crop = img_bgr[max(0,y1):y1+eye_h, max(0,x1):x2]
+                if eye_crop.size > 0 and eye_crop.shape[0] > 20 and app:
+                    ec = cv2.resize(eye_crop, (112, 112))
+                    ef = app.get(ec)
+                    if ef:
+                        query_eye_emb = ef[0].embedding
+            except:
+                pass
 
-        if final_confidence >= threshold:
-            meta = _metadata.get(filename, {})
-            matches.append({
-                "name": meta.get("Name", filename.rsplit('.', 1)[0]),
-                "roll_no": meta.get("RRN", "N/A"),
-                "department": meta.get("Department", "N/A"),
-                "year": meta.get("Year", "N/A"),
-                "section": meta.get("Section", "N/A"),
-                "confidence": round(final_confidence, 4),
-                "full_sim": round(best_full, 4),
-                "eye_sim": round(best_eye, 4) if best_eye > 0 else None,
-                "filename": filename,
-                "quality_factor": round(quality_factor, 3),
-                "bbox": bbox
+        # Adaptive threshold
+        threshold = 0.28
+        if det_score < 0.5: threshold -= 0.04
+        if face_quality < 0.4: threshold -= 0.03
+        threshold = max(threshold, 0.20)
+
+        # Compare against all stored persons
+        face_matches = []
+        for filename, person_data in _cache.items():
+            variants = person_data.get("variants", [])
+            if not variants:
+                continue
+            best_full = -1.0
+            best_eye = -1.0
+            for v in variants:
+                if v.get("full") is None:
+                    continue
+                fsim = cosine_sim(query_emb, v["full"])
+                if fsim > best_full:
+                    best_full = fsim
+                if query_eye_emb is not None and v.get("eye") is not None:
+                    esim = cosine_sim(query_eye_emb, v["eye"])
+                    if esim > best_eye:
+                        best_eye = esim
+
+            if best_full < 0.35 and best_eye > 0:
+                final_sim = 0.25 * best_full + 0.75 * best_eye
+            else:
+                final_sim = best_full
+
+            stored_qual = person_data.get("quality", 0.8)
+            quality_factor = (face_quality + stored_qual) / 2.0
+            final_confidence = final_sim * (0.75 + 0.25 * quality_factor)
+
+            if final_confidence >= threshold:
+                meta = _metadata.get(filename, {})
+                face_matches.append({
+                    "name": meta.get("Name", filename.rsplit('.', 1)[0]),
+                    "roll_no": meta.get("RRN", "N/A"),
+                    "department": meta.get("Department", "N/A"),
+                    "year": meta.get("Year", "N/A"),
+                    "section": meta.get("Section", "N/A"),
+                    "confidence": round(final_confidence, 4),
+                    "full_sim": round(best_full, 4),
+                    "eye_sim": round(best_eye, 4) if best_eye > 0 else None,
+                    "filename": filename,
+                    "quality_factor": round(quality_factor, 3),
+                    "bbox": bbox,
+                    "face_index": face_idx,
+                    "is_unknown": False
+                })
+
+        face_matches.sort(key=lambda x: x["confidence"], reverse=True)
+
+        if face_matches:
+            # Known person — add top match to results
+            matched_results.append(face_matches[0])
+            all_face_results.append({
+                "bbox": bbox,
+                "det_score": round(det_score, 3),
+                "is_unknown": False,
+                "name": face_matches[0]["name"],
+                "confidence": face_matches[0]["confidence"],
+                "face_index": face_idx
             })
+        else:
+            # Unknown person — still report bbox for overlay + alert
+            all_face_results.append({
+                "bbox": bbox,
+                "det_score": round(det_score, 3),
+                "is_unknown": True,
+                "name": "Unknown",
+                "confidence": 0.0,
+                "face_index": face_idx
+            })
+            log(f"  Face {face_idx}: UNKNOWN (det_score={det_score:.2f})")
 
-    matches.sort(key=lambda x: x["confidence"], reverse=True)
     elapsed = time.time() - t_start
-    log(f"Done: {len(matches)} matches in {elapsed:.2f}s")
-    if matches:
-        log(f"Top: {matches[0]['name']} ({matches[0]['confidence']:.4f})")
+    log(f"Multi-face done: {len(matched_results)} matched, {len(all_face_results)-len(matched_results)} unknown, {elapsed:.2f}s")
+
+    # Primary match = highest confidence known person (for backward compat with upload flow)
+    primary = matched_results[0] if matched_results else None
+    primary_bbox = primary["bbox"] if primary else (all_face_results[0]["bbox"] if all_face_results else None)
 
     return {
-        "matches": matches[:5],
-        "total_matches": len(matches),
-        "uploaded_image_quality": round(quality_score, 3),
-        "detection_score": round(det_score, 3),
+        "matches": matched_results[:5],
+        "all_detections": all_face_results,   # NEW: all faces with bbox + unknown flag
+        "total_matches": len(matched_results),
+        "uploaded_image_quality": round(frame_quality, 3),
+        "detection_score": round(all_faces[0].det_score if all_faces else 0, 3),
         "elapsed_seconds": round(elapsed, 2),
+        "bbox": primary_bbox,
         "model_info": {
             "detection": "RetinaFace (InsightFace Buffalo_L)",
             "embedding": "ArcFace R100",
             "similarity": "Cosine + Eye-region fallback",
-            "matching": "Multi-variant persistent daemon"
+            "matching": "Multi-face multi-variant persistent daemon"
         }
     }
 

@@ -244,6 +244,23 @@ router.post("/recognize", isAuthenticated, upload.single("image"), async (req, r
       bbox: bestMatch?.bbox || null
     };
 
+    // Build all_detections for live overlay (includes unknown faces)
+    const allDetections = result.all_detections || [];
+    const unknownFaces = allDetections.filter(d => d.is_unknown);
+
+    // Trigger WhatsApp alert for unknown faces detected via live camera
+    // Only if request has a header indicating it's from the live feed
+    const isLiveFeed = req.headers['x-detection-source'] === 'live-camera';
+    if (isLiveFeed && unknownFaces.length > 0) {
+      twilioService.sendWhatsAppAlert({
+        name: `Unknown Individual (${unknownFaces.length} face${unknownFaces.length > 1 ? 's' : ''})`,
+        threatLevel: "HIGH",
+        confidence: 0,
+        timestamp: Date.now(),
+        eventType: "UNKNOWN_FACE_LIVE_CAMERA"
+      }).catch(e => console.warn("[Alert] WhatsApp error:", e.message));
+    }
+
     // Cache the result for frame dedup
     try {
       const frameBuffer = fs.readFileSync(uploadedImagePath);
@@ -257,7 +274,11 @@ router.post("/recognize", isAuthenticated, upload.single("image"), async (req, r
       }
     } catch (_) {}
 
-    return res.json(responseJson);
+    return res.json({
+      ...responseJson,
+      all_detections: allDetections,    // used by live camera overlay
+      unknown_count: unknownFaces.length
+    });
 
   } catch (err) {
     console.error("[Recognize] Bridge error:", err.message);

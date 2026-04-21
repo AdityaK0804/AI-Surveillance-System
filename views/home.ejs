@@ -715,7 +715,7 @@
                     }, 300);
 
                     if (detectionInterval) clearInterval(detectionInterval);
-                    detectionInterval = setInterval(processFrame, 600); // every 600ms
+                    detectionInterval = setInterval(processFrame, 500); // every 500ms
                 } catch (err) {
                     console.error("Camera error:", err);
                     const placeholder = document.getElementById('cameraPlaceholder');
@@ -810,55 +810,82 @@
                 canvas.toBlob(async (blob) => {
                     if (!blob) { isProcessingFrame = false; return; }
 
-                    // Apply blob preview onto results in background
-                    const objUrl = URL.createObjectURL(blob);
-                    document.getElementById('resultLeftImg').src = objUrl;
-
                     const formData = new FormData();
                     formData.append('image', blob, `live_${Date.now()}.jpg`);
 
                     try {
-                        const res = await fetch("/recognize", { method: "POST", body: formData });
-                        const data = await res.json();
+                        const res = await fetch("/recognize", {
+                            method: "POST",
+                            body: formData,
+                            headers: { 'x-detection-source': 'live-camera' }
+                        });
 
+                        if (res.status === 401 || res.redirected) {
+                            stopCamera();
+                            window.location.href = '/auth/login';
+                            return;
+                        }
+
+                        const data = await res.json();
                         const label = document.getElementById('liveDetectionLabel');
 
-                        if (data.match && data.match !== "No Match") {
-                            // Update overlay detections
-                            lastDetections = [{
-                                bbox: data.bbox || null,
-                                matched: true,
-                                name: data.match,
-                                confidence: data.confidence
-                            }];
+                        // Get all_detections (includes unknown faces)
+                        const allDetections = data.all_detections || [];
+
+                        if (allDetections.length > 0) {
+                            // Update overlay with ALL faces (known + unknown)
+                            lastDetections = allDetections.map(d => ({
+                                bbox: d.bbox,
+                                matched: !d.is_unknown,
+                                name: d.name || (d.is_unknown ? 'Unknown' : ''),
+                                confidence: d.confidence || 0
+                            }));
+
+                            const knownFaces = allDetections.filter(d => !d.is_unknown);
+                            const unknownFaces = allDetections.filter(d => d.is_unknown);
 
                             if (label) {
-                                label.style.display = 'block';
-                                label.innerHTML = '<i class="fas fa-user-check" style="color:#22c55e; margin-right:6px;"></i>' + data.match + ' — ' + ((data.confidence || 0) * 100).toFixed(1) + '%';
+                                if (knownFaces.length > 0 && unknownFaces.length === 0) {
+                                    // All known
+                                    const names = knownFaces.map(d => d.name).join(', ');
+                                    label.style.display = 'block';
+                                    label.innerHTML = `<i class="fas fa-user-check" style="color:#22c55e;margin-right:6px;"></i>${names}`;
+                                } else if (unknownFaces.length > 0 && knownFaces.length === 0) {
+                                    // All unknown
+                                    label.style.display = 'block';
+                                    label.innerHTML = `<i class="fas fa-user-slash" style="color:#ef4444;margin-right:6px;"></i>Unknown person detected — Alert sent`;
+                                } else if (knownFaces.length > 0 && unknownFaces.length > 0) {
+                                    // Mixed
+                                    label.style.display = 'block';
+                                    label.innerHTML = `<i class="fas fa-users" style="color:#f97316;margin-right:6px;"></i>${knownFaces.length} known, ${unknownFaces.length} unknown`;
+                                }
                             }
 
-                            // After 1.5 seconds of showing the match in overlay, stop and show full results
-                            setTimeout(() => {
-                                if (isCameraRunning) {
-                                    stopCamera();
-                                    document.getElementById('matchModeToggle').style.display = 'none';
-                                    renderResultUI(data);
-                                }
-                            }, 1500);
+                            // If there's a known match, show full result after 1.5s
+                            if (knownFaces.length > 0 && data.match) {
+                                setTimeout(() => {
+                                    if (isCameraRunning) {
+                                        stopCamera();
+                                        document.getElementById('matchModeToggle').style.display = 'none';
+                                        renderResultUI(data);
+                                    }
+                                }, 1500);
+                            }
 
-                        } else if (data.error) {
+                        } else if (data.error && data.error !== "No face detected. Try a clearer photo.") {
+                            // Real error (not just no face in frame)
                             lastDetections = [];
                             if (label) {
                                 label.style.display = 'block';
-                                label.innerHTML = '<i class="fas fa-exclamation-circle" style="color:#ef4444; margin-right:6px;"></i>' + data.error;
+                                label.innerHTML = `<i class="fas fa-exclamation-circle" style="color:#ef4444;margin-right:6px;"></i>${data.error}`;
                                 setTimeout(() => { if(label) label.style.display = 'none'; }, 3000);
                             }
                         } else {
-                            // No match — show scanning indicator but keep running
-                            lastDetections = data.bbox ? [{ bbox: data.bbox, matched: false }] : [];
+                            // No face detected in this frame — keep scanning, clear old boxes
+                            lastDetections = [];
                             if (label) {
                                 label.style.display = 'block';
-                                label.innerHTML = '<i class="fas fa-search" style="color:#a3a3a3; margin-right:6px;"></i>Scanning...';
+                                label.innerHTML = `<i class="fas fa-circle-notch fa-spin" style="color:#6366f1;margin-right:6px;"></i>Scanning...`;
                             }
                         }
                     } catch (err) {
