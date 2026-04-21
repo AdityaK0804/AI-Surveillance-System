@@ -11,6 +11,7 @@ import initializeDatabase from "./config/init-db.js";
 import { setUserLocals, isAuthenticated } from "./middleware/auth.js";
 import path from "path";
 import { readFileSync } from "fs";
+import { pythonBridge } from './python_bridge.js';
 
 const app = express();
 const port = process.env.PORT || 8000;

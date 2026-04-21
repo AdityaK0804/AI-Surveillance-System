@@ -10,6 +10,7 @@ import pool from "../config/db.js";
 import supabase from "../config/supabase.js";
 import { SurveillanceEngine } from "../surveillance/index.js";
 import { twilioService } from "../surveillance/twilio.js";
+import { pythonBridge } from '../python_bridge.js';
 
 const router = express.Router();
 
@@ -180,49 +181,15 @@ router.post("/recognize", isAuthenticated, upload.single("image"), async (req, r
     }
   } catch (_) {}
 
-  // Resolve python executable — try venv first, then global python3, then python
-  let pythonCmd = "python";
-  if (existsSync(path.join("venv", "Scripts", "python.exe"))) {
-    pythonCmd = path.join("venv", "Scripts", "python.exe");
-  } else if (existsSync(path.join("venv", "bin", "python3"))) {
-    pythonCmd = path.join("venv", "bin", "python3");
-  } else if (existsSync(path.join("venv", "bin", "python"))) {
-    pythonCmd = path.join("venv", "bin", "python");
-  }
-
-  const cmd = `"${pythonCmd}" match.py "${uploadedImagePath}"`;
-  console.log(`[Recognize] Running: ${cmd}`);
-
-  exec(cmd, { timeout: 60000, maxBuffer: 1024 * 1024 * 10 }, async (error, stdout, stderr) => {
-    // Always log stderr from Python — this shows model loading, quality, debug info
-    if (stderr && stderr.trim()) {
-      console.log("[Python stderr]", stderr.trim());
-    }
-
-    if (error) {
-      console.error("[Recognize] exec error:", error.message);
-    }
-
-    // Find the last valid JSON line in stdout (match.py prints JSON as last line)
-    let result = null;
-    const lines = (stdout || "").trim().split("\n");
-    for (let i = lines.length - 1; i >= 0; i--) {
-      try {
-        result = JSON.parse(lines[i].trim());
-        break;
-      } catch (_) {}
-    }
-
-    if (!result) {
-      console.error("[Recognize] No valid JSON from Python. stdout:", stdout, "error:", error?.message);
-      return res.json({ match: null, error: "Detection failed — check Python logs" });
-    }
+  try {
+    // Send to persistent daemon — no new process spawn, models already loaded
+    const result = await pythonBridge.match(uploadedImagePath);
 
     if (result.error) {
       return res.json({ match: null, error: result.error });
     }
 
-    // Run surveillance engine enrichment
+    // Surveillance engine enrichment (unchanged)
     let enrichedResult = null;
     try {
       enrichedResult = surveillanceEngine.processDetection(result);
@@ -233,7 +200,7 @@ router.post("/recognize", isAuthenticated, upload.single("image"), async (req, r
     const bestMatch = (enrichedResult?.matches || result.matches || [])[0];
 
     let studentData = null;
-    if (bestMatch && bestMatch.filename) {
+    if (bestMatch?.filename) {
       try {
         const dbResult = await pool.query(
           "SELECT * FROM students WHERE image_url LIKE $1",
@@ -260,7 +227,6 @@ router.post("/recognize", isAuthenticated, upload.single("image"), async (req, r
     const matchThreat = bestMatch?.surveillance?.threatLevel || "LOW";
     const matchClass = studentData?.department || bestMatch?.department || "Unknown";
 
-    // Log detection asynchronously
     if (matchName) {
       pool.query(
         "INSERT INTO detection_logs (uploaded_image, matched_identity, confidence) VALUES ($1, $2, $3)",
@@ -283,7 +249,6 @@ router.post("/recognize", isAuthenticated, upload.single("image"), async (req, r
       const frameBuffer = fs.readFileSync(uploadedImagePath);
       const frameHash = getFrameHash(frameBuffer);
       frameCache.set(frameHash, { ts: Date.now(), result: responseJson });
-      // Cleanup old entries every 100 requests
       if (frameCache.size > 100) {
         const cutoff = Date.now() - FRAME_CACHE_TTL * 2;
         for (const [k, v] of frameCache) {
@@ -293,7 +258,11 @@ router.post("/recognize", isAuthenticated, upload.single("image"), async (req, r
     } catch (_) {}
 
     return res.json(responseJson);
-  });
+
+  } catch (err) {
+    console.error("[Recognize] Bridge error:", err.message);
+    return res.json({ match: null, error: "Detection failed: " + err.message });
+  }
 });
 
 // POST /alerts/whatsapp — Twilio WhatsApp Alert
@@ -303,142 +272,96 @@ router.post("/alerts/whatsapp", isAuthenticated, async (req, res) => {
   res.json({ success });
 });
 
-// Background processing function
-function processMatch(matchId, uploadedImagePath, filename) {
-  let pythonCmd = "python"; // Fallback to global python
+// Background processing function — uses persistent daemon
+async function processMatch(matchId, uploadedImagePath, filename) {
+  const match = pendingMatches.get(matchId);
+  if (!match) return;
 
-  if (existsSync(path.join("venv", "Scripts", "python.exe"))) {
-    pythonCmd = path.join("venv", "Scripts", "python"); // Windows venv
-  } else if (existsSync(path.join("venv", "bin", "python"))) {
-    pythonCmd = path.join("venv", "bin", "python"); // Mac/Linux venv
-  }
+  try {
+    // Use persistent daemon — instant response (models already loaded)
+    const result = await pythonBridge.match(uploadedImagePath);
 
-  exec(`"${pythonCmd}" match.py "${uploadedImagePath}"`, {
-    maxBuffer: 1024 * 1024 * 10
-  }, async (error, stdout, stderr) => {
-    if (stderr && stderr.trim()) {
-      console.log("🐍 Python ML Stderr:", stderr);
-    }
-    if (stdout && stdout.trim()) {
-      console.log("🐍 Python ML Stdout:", stdout);
+    // Surveillance enrichment (unchanged)
+    let enrichedResult = null;
+    try {
+      enrichedResult = surveillanceEngine.processDetection(result);
+    } catch (survErr) {
+      console.error("[Surveillance] Processing error (non-fatal):", survErr.message);
     }
 
-    const match = pendingMatches.get(matchId);
-    if (!match) return;
-
-    if (error) {
-      console.error(`❌ ML Exec Error: ${error.message}`);
-      match.status = "error";
-      match.error = `ML matching error: ${error.message}`;
+    if (result.error) {
+      match.status = "complete";
+      match.result = {
+        title: "No Match - Crescent College",
+        matchResult: "No Match",
+        matchScore: "N/A",
+        uploadedImage: `/uploads/${filename}`,
+        matchedImage: null,
+        personInfo: { name: "N/A", rrn: "N/A", department: "N/A", year: "N/A", section: "N/A" },
+        error: result.error,
+        matches: [],
+        imageQuality: result.uploaded_image_quality || null
+      };
       return;
     }
 
-    try {
-      const result = JSON.parse(stdout);
+    const bestMatch = result.matches?.[0] || null;
+    const matchedImage = bestMatch?.filename ? `/images/${bestMatch.filename}` : null;
 
-      // ===== SURVEILLANCE ENGINE ENRICHMENT =====
-      // Process detection through surveillance pipeline
-      // This extends the result with tracking + threat data
-      let enrichedResult = null;
+    let bestMatchMetadata = {};
+    if (bestMatch?.filename) {
       try {
-        enrichedResult = surveillanceEngine.processDetection(result);
-      } catch (survErr) {
-        console.error("[Surveillance] Processing error (non-fatal):", survErr.message);
-      }
-      // ===== END SURVEILLANCE ENRICHMENT =====
-
-      if (result.error) {
-        match.status = "complete";
-        match.result = {
-          title: "No Match - Crescent College",
-          matchResult: "No Match",
-          matchScore: "N/A",
-          uploadedImage: `/uploads/${filename}`,
-          matchedImage: null,
-          personInfo: {
-            name: "N/A",
-            rrn: "N/A",
-            department: "N/A",
-            year: "N/A",
-            section: "N/A"
-          },
-          error: result.error,
-          matches: [],
-          imageQuality: result.quality_score || null
-        };
-        return;
-      }
-
-      const bestMatch = result.matches && result.matches.length > 0
-        ? result.matches[0]
-        : null;
-
-      const matchedImage = bestMatch && bestMatch.filename
-        ? `/images/${bestMatch.filename}`
-        : null;
-
-      let bestMatchMetadata = {};
-      try {
-        if (bestMatch && bestMatch.filename) {
-          const dbResult = await pool.query(
-            "SELECT * FROM students WHERE image_url LIKE $1",
-            [`%${bestMatch.filename}`]
-          );
-          if (dbResult.rows.length > 0) {
-            const student = dbResult.rows[0];
-            bestMatchMetadata = {
-              Name: student.name,
-              RRN: student.rrn,
-              Department: student.department,
-              Year: student.year,
-              Section: student.section
-            };
-          }
+        const dbResult = await pool.query(
+          "SELECT * FROM students WHERE image_url LIKE $1",
+          [`%${bestMatch.filename}`]
+        );
+        if (dbResult.rows.length > 0) {
+          const s = dbResult.rows[0];
+          bestMatchMetadata = { Name: s.name, RRN: s.rrn, Department: s.department, Year: s.year, Section: s.section };
         }
       } catch (e) {
-        console.error("Error fetching student from database:", e);
+        console.error("DB lookup error:", e.message);
       }
-
-      const confidence = bestMatch ? bestMatch.confidence : 0;
-      let matchQuality = "No Match";
-      if (confidence >= 0.85) matchQuality = "Excellent Match";
-      else if (confidence >= 0.75) matchQuality = "Strong Match";
-      else if (confidence >= 0.65) matchQuality = "Good Match";
-      else if (confidence >= 0.55) matchQuality = "Possible Match";
-
-      match.status = "complete";
-      match.result = {
-        title: "Match Results - Crescent College",
-        matchResult: bestMatch
-          ? `${matchQuality} (${(confidence * 100).toFixed(1)}%)`
-          : "No match found",
-        matchScore: bestMatch
-          ? `${(confidence * 100).toFixed(1)}%`
-          : "N/A",
-        uploadedImage: `/uploads/${filename}`,
-        matchedImage: matchedImage,
-        personInfo: {
-          name: bestMatch?.name || bestMatchMetadata.Name || "N/A",
-          rrn: bestMatch?.roll_no || bestMatchMetadata.RRN || "N/A",
-          department: bestMatch?.department || bestMatchMetadata.Department || "N/A",
-          year: bestMatch?.year || bestMatchMetadata.Year || "N/A",
-          section: bestMatch?.section || bestMatchMetadata.Section || "N/A"
-        },
-        matches: enrichedResult?.matches || result.matches || [],
-        totalMatches: result.total_matches || 0,
-        error: null,
-        imageQuality: result.uploaded_image_quality || null,
-        modelInfo: result.model_info || null,
-        // Surveillance data — extends the result, views ignore unknown fields
-        surveillance: enrichedResult?.surveillance || null
-      };
-
-    } catch (e) {
-      console.error("Failed to parse JSON from Python script:", e);
-      match.status = "error";
-      match.error = "Failed to process image";
     }
-  });
+
+    const confidence = bestMatch?.confidence || 0;
+    let matchQuality = "No Match";
+    if (confidence >= 0.85)      matchQuality = "Excellent Match";
+    else if (confidence >= 0.75) matchQuality = "Strong Match";
+    else if (confidence >= 0.65) matchQuality = "Good Match";
+    else if (confidence >= 0.55) matchQuality = "Possible Match";
+
+    match.status = "complete";
+    match.result = {
+      title: "Match Results - Crescent College",
+      matchResult: bestMatch
+        ? `${matchQuality} (${(confidence * 100).toFixed(1)}%)`
+        : "No match found",
+      matchScore: bestMatch
+        ? `${(confidence * 100).toFixed(1)}%`
+        : "N/A",
+      uploadedImage: `/uploads/${filename}`,
+      matchedImage,
+      personInfo: {
+        name: bestMatch?.name || bestMatchMetadata.Name || "N/A",
+        rrn: bestMatch?.roll_no || bestMatchMetadata.RRN || "N/A",
+        department: bestMatch?.department || bestMatchMetadata.Department || "N/A",
+        year: bestMatch?.year || bestMatchMetadata.Year || "N/A",
+        section: bestMatch?.section || bestMatchMetadata.Section || "N/A"
+      },
+      matches: enrichedResult?.matches || result.matches || [],
+      totalMatches: result.total_matches || 0,
+      error: null,
+      imageQuality: result.uploaded_image_quality || null,
+      modelInfo: result.model_info || null,
+      surveillance: enrichedResult?.surveillance || null
+    };
+
+  } catch (err) {
+    console.error("[processMatch] Bridge error:", err.message);
+    match.status = "error";
+    match.error = "Detection failed: " + err.message;
+  }
 }
 
 router.get("/add-student", isAuthenticated, (req, res) => {
@@ -504,6 +427,11 @@ router.post("/add-student", isAuthenticated, upload.single("image"), async (req,
 
         console.log(`✅ Student saved/updated: ${name} (${rrn}) → ${imageUrl}`);
 
+        // Tell daemon to reload metadata + generate embeddings for new student
+        pythonBridge.invalidate(fileName).catch(e => 
+          console.warn("[AddStudent] Cache invalidation warning:", e.message)
+        );
+
         return res.render("add-student", {
             title: "Add Student — Crescent College",
             error: null,
@@ -539,22 +467,24 @@ router.post("/add-student", isAuthenticated, upload.single("image"), async (req,
 // CACHE REGENERATION ENDPOINT
 // ============================================
 
-// POST /api/regenerate-cache — rebuild augmented embeddings cache
-router.post("/api/regenerate-cache", isAuthenticated, (req, res) => {
-  const pythonCmd = existsSync(path.join("venv", "Scripts", "python.exe"))
-    ? path.join("venv", "Scripts", "python")
-    : existsSync(path.join("venv", "bin", "python"))
-    ? path.join("venv", "bin", "python")
-    : "python";
+// POST /api/regenerate-cache — rebuild augmented embeddings cache via daemon
+router.post("/api/regenerate-cache", isAuthenticated, async (req, res) => {
+  try {
+    const result = await pythonBridge.regenerate();
+    res.json({ success: true, message: "Cache regenerated", count: result.count });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
 
-  exec(`"${pythonCmd}" match.py --regenerate-augmented`, { timeout: 120000 }, (error, stdout, stderr) => {
-    if (error) {
-      console.error("[Cache Regen] Error:", error.message);
-      return res.json({ success: false, error: error.message });
-    }
-    console.log("[Cache Regen] Done:", stderr);
-    res.json({ success: true, message: "Augmented embeddings cache rebuilt successfully" });
-  });
+// GET /api/daemon-status — check Python daemon health
+router.get("/api/daemon-status", isAuthenticated, async (req, res) => {
+  try {
+    const status = await pythonBridge.status();
+    res.json({ success: true, ready: pythonBridge.isReady(), ...status });
+  } catch (err) {
+    res.json({ success: false, ready: false, error: err.message });
+  }
 });
 
 // ============================================
