@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crescent College — System Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0a;
+    color: #e2e8f0;
+    font-family: 'Inter', -apple-system, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Header ── */
+  .header {
+    text-align: center;
+    padding: 40px 20px 10px;
+    position: relative;
+  }
+  .header h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #6366f1, #a78bfa, #818cf8);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+  }
+  .header .subtitle {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    margin-top: 6px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .header .models {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-top: 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── Legend ── */
+  .legend {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin: 18px 0 10px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.72rem;
+    color: #94a3b8;
+  }
+  .legend-line {
+    width: 30px;
+    height: 3px;
+    border-radius: 2px;
+  }
+  .legend-line.json { background: #6366f1; }
+  .legend-line.http { background: #22d3ee; }
+  .legend-line.sql  { background: #f59e0b; }
+  .legend-line.api  { background: #ef4444; }
+  .legend-line.file { background: #10b981; }
+
+  /* ── Canvas Area ── */
+  .canvas-area {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 10px 20px 40px;
+    position: relative;
+  }
+
+  svg.arch-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  /* ── Tooltip ── */
+  .tooltip {
+    position: fixed;
+    background: #1e1b4b;
+    border: 1px solid #6366f1;
+    border-radius: 10px;
+    padding: 14px 18px;
+    max-width: 340px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 1000;
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.25);
+  }
+  .tooltip.visible { opacity: 1; }
+  .tooltip h3 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #a78bfa;
+    margin-bottom: 6px;
+  }
+  .tooltip p {
+    font-size: 0.78rem;
+    color: #cbd5e1;
+    line-height: 1.45;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .header h1 { font-size: 1.3rem; }
+    .legend { gap: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Crescent College Face Recognition &amp; Surveillance System</h1>
+  <div class="subtitle">System Architecture Diagram</div>
+  <div class="models">RetinaFace + ArcFace R100 (InsightFace Buffalo_L) • ONNX Runtime</div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-line json"></div>JSON Pipe (stdin/stdout)</div>
+  <div class="legend-item"><div class="legend-line http"></div>HTTP / AJAX</div>
+  <div class="legend-item"><div class="legend-line sql"></div>SQL Query</div>
+  <div class="legend-item"><div class="legend-line api"></div>WhatsApp API</div>
+  <div class="legend-item"><div class="legend-line file"></div>File I/O</div>
+</div>
+
+<div class="canvas-area">
+  <svg class="arch-svg" viewBox="0 0 1100 920" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <!-- Glow filter -->
+      <filter id="glow">
+        <feGaussianBlur stdDeviation="2.5" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="glowStrong">
+        <feGaussianBlur stdDeviation="4" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <!-- Arrow markers -->
+      <marker id="arrowIndigo" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#6366f1"/>
+      </marker>
+      <marker id="arrowCyan" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee"/>
+      </marker>
+      <marker id="arrowAmber" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#f59e0b"/>
+      </marker>
+      <marker id="arrowRed" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444"/>
+      </marker>
+      <marker id="arrowGreen" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#10b981"/>
+      </marker>
+    </defs>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- LAYER 1 — Browser / Client                 -->
+    <!-- ═══════════════════════════════════════════ -->
+    <rect x="30" y="20" width="1040" height="120" rx="12" fill="#0f172a" stroke="#1e293b" stroke-width="1.5"/>
+    <text x="60" y="46" font-size="11" fill="#64748b" font-weight="600" letter-spacing="2" font-family="JetBrains Mono, monospace">LAYER 1 — BROWSER / CLIENT</text>
+
+    <rect class="node" data-id="live-camera" x="80" y="62" width="200" height="58" rx="8" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.2" cursor="pointer"/>
+    <text x="180" y="87" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">📹 Live Camera Feed</text>
+    <text x="180" y="105" text-anchor="middle" font-size="9.5" fill="#94a3b8">getUserMedia • 500ms polling</text>
+
+    <rect class="node" data-id="upload-form" x="330" y="62" width="200" height="58" rx="8" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.2" cursor="pointer"/>
+    <text x="430" y="87" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">📤 Image Upload Form</text>
+    <text x="430" y="105" text-anchor="middle" font-size="9.5" fill="#94a3b8">multipart/form-data • POST</text>
+
+    <rect class="node" data-id="ejs-pages" x="580" y="62" width="200" height="58" rx="8" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.2" cursor="pointer"/>
+    <text x="680" y="87" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">📄 EJS Result Pages</text>
+    <text x="680" y="105" text-anchor="middle" font-size="9.5" fill="#94a3b8">scanning.ejs • result.ejs</text>
+
+    <rect class="node" data-id="canvas-overlay" x="830" y="62" width="200" height="58" rx="8" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.2" cursor="pointer"/>
+    <text x="930" y="87" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">🎨 Canvas Overlay</text>
+    <text x="930" y="105" text-anchor="middle" font-size="9.5" fill="#94a3b8">Bounding boxes • Labels</text>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- ARROWS: Layer 1 → Layer 2                  -->
+    <!-- ═══════════════════════════════════════════ -->
+    <line x1="180" y1="120" x2="180" y2="175" stroke="#22d3ee" stroke-width="2" marker-end="url(#arrowCyan)" stroke-dasharray="6,3"/>
+    <text x="195" y="152" font-size="8.5" fill="#22d3ee" font-family="JetBrains Mono, monospace">POST /recognize</text>
+
+    <line x1="430" y1="120" x2="430" y2="175" stroke="#22d3ee" stroke-width="2" marker-end="url(#arrowCyan)" stroke-dasharray="6,3"/>
+    <text x="445" y="152" font-size="8.5" fill="#22d3ee" font-family="JetBrains Mono, monospace">POST /upload</text>
+
+    <line x1="680" y1="120" x2="680" y2="175" stroke="#22d3ee" stroke-width="2" marker-end="url(#arrowCyan)" marker-start="url(#arrowCyan)" stroke-dasharray="6,3"/>
+    <text x="695" y="152" font-size="8.5" fill="#22d3ee" font-family="JetBrains Mono, monospace">HTML Response</text>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- LAYER 2 — Node.js Express Server           -->
+    <!-- ═══════════════════════════════════════════ -->
+    <rect x="30" y="175" width="1040" height="290" rx="12" fill="#0f172a" stroke="#1e293b" stroke-width="1.5"/>
+    <text x="60" y="201" font-size="11" fill="#64748b" font-weight="600" letter-spacing="2" font-family="JetBrains Mono, monospace">LAYER 2 — NODE.JS EXPRESS SERVER</text>
+
+    <!-- Top row: Auth, Multer, Routes -->
+    <rect class="node" data-id="auth-middleware" x="80" y="215" width="170" height="50" rx="8" fill="#1a1a2e" stroke="#818cf8" stroke-width="1.2" cursor="pointer"/>
+    <text x="165" y="237" text-anchor="middle" font-size="11.5" fill="#e2e8f0" font-weight="600">🔐 Auth Middleware</text>
+    <text x="165" y="253" text-anchor="middle" font-size="9" fill="#94a3b8">isAuthenticated • bcrypt</text>
+
+    <rect class="node" data-id="multer" x="280" y="215" width="170" height="50" rx="8" fill="#1a1a2e" stroke="#818cf8" stroke-width="1.2" cursor="pointer"/>
+    <text x="365" y="237" text-anchor="middle" font-size="11.5" fill="#e2e8f0" font-weight="600">📁 Multer Upload</text>
+    <text x="365" y="253" text-anchor="middle" font-size="9" fill="#94a3b8">10MB limit • images only</text>
+
+    <rect class="node" data-id="routes" x="480" y="215" width="220" height="50" rx="8" fill="#1a1a2e" stroke="#818cf8" stroke-width="1.2" cursor="pointer"/>
+    <text x="590" y="237" text-anchor="middle" font-size="11.5" fill="#e2e8f0" font-weight="600">🛣️ Route Handlers</text>
+    <text x="590" y="253" text-anchor="middle" font-size="9" fill="#94a3b8">/recognize • /upload • /add-student</text>
+
+    <rect class="node" data-id="python-bridge" x="730" y="215" width="200" height="50" rx="8" fill="#1a1a2e" stroke="#818cf8" stroke-width="1.2" cursor="pointer"/>
+    <text x="830" y="237" text-anchor="middle" font-size="11.5" fill="#e2e8f0" font-weight="600">🔗 Python Bridge</text>
+    <text x="830" y="253" text-anchor="middle" font-size="9" fill="#94a3b8">IPC • auto-restart • 90s timeout</text>
+
+    <!-- Bottom row: Surveillance Engine with sub-modules -->
+    <rect x="80" y="285" width="850" height="165" rx="10" fill="#111827" stroke="#4f46e5" stroke-width="1.5" stroke-dasharray="4,2"/>
+    <text x="110" y="308" font-size="11" fill="#6366f1" font-weight="600" letter-spacing="1" font-family="JetBrains Mono, monospace">SURVEILLANCE ENGINE (1000ms tick)</text>
+
+    <rect class="node" data-id="track-manager" x="100" y="320" width="150" height="55" rx="7" fill="#1e1b4b" stroke="#8b5cf6" stroke-width="1" cursor="pointer"/>
+    <text x="175" y="343" text-anchor="middle" font-size="10.5" fill="#e2e8f0" font-weight="600">TrackManager</text>
+    <text x="175" y="358" text-anchor="middle" font-size="8.5" fill="#a78bfa">Ghost tracking</text>
+    <text x="175" y="370" text-anchor="middle" font-size="8.5" fill="#a78bfa">Re-identification</text>
+
+    <rect class="node" data-id="confidence-filter" x="270" y="320" width="150" height="55" rx="7" fill="#1e1b4b" stroke="#8b5cf6" stroke-width="1" cursor="pointer"/>
+    <text x="345" y="343" text-anchor="middle" font-size="10.5" fill="#e2e8f0" font-weight="600">ConfidenceFilter</text>
+    <text x="345" y="358" text-anchor="middle" font-size="8.5" fill="#a78bfa">EMA smoothing</text>
+    <text x="345" y="370" text-anchor="middle" font-size="8.5" fill="#a78bfa">α=0.3 • lost@3 frames</text>
+
+    <rect class="node" data-id="threat-analyzer" x="440" y="320" width="150" height="55" rx="7" fill="#1e1b4b" stroke="#8b5cf6" stroke-width="1" cursor="pointer"/>
+    <text x="515" y="343" text-anchor="middle" font-size="10.5" fill="#e2e8f0" font-weight="600">ThreatAnalyzer</text>
+    <text x="515" y="358" text-anchor="middle" font-size="8.5" fill="#a78bfa">4-factor scoring</text>
+    <text x="515" y="370" text-anchor="middle" font-size="8.5" fill="#a78bfa">Hysteresis 5/10</text>
+
+    <rect class="node" data-id="alert-manager" x="610" y="320" width="150" height="55" rx="7" fill="#1e1b4b" stroke="#8b5cf6" stroke-width="1" cursor="pointer"/>
+    <text x="685" y="343" text-anchor="middle" font-size="10.5" fill="#e2e8f0" font-weight="600">AlertManager</text>
+    <text x="685" y="358" text-anchor="middle" font-size="8.5" fill="#a78bfa">Cooldowns • Dedup</text>
+    <text x="685" y="370" text-anchor="middle" font-size="8.5" fill="#a78bfa">Priority filtering</text>
+
+    <rect class="node" data-id="frame-dedup" x="780" y="320" width="135" height="55" rx="7" fill="#1e1b4b" stroke="#8b5cf6" stroke-width="1" cursor="pointer"/>
+    <text x="847" y="343" text-anchor="middle" font-size="10.5" fill="#e2e8f0" font-weight="600">Frame Dedup</text>
+    <text x="847" y="358" text-anchor="middle" font-size="8.5" fill="#a78bfa">MD5 hash</text>
+    <text x="847" y="370" text-anchor="middle" font-size="8.5" fill="#a78bfa">500ms TTL</text>
+
+    <!-- Arrows between surveillance sub-modules -->
+    <line x1="250" y1="347" x2="270" y2="347" stroke="#8b5cf6" stroke-width="1" marker-end="url(#arrowIndigo)"/>
+    <line x1="420" y1="347" x2="440" y2="347" stroke="#8b5cf6" stroke-width="1" marker-end="url(#arrowIndigo)"/>
+    <line x1="590" y1="347" x2="610" y2="347" stroke="#8b5cf6" stroke-width="1" marker-end="url(#arrowIndigo)"/>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- ARROWS: Layer 2 → Layer 3 (JSON pipe)      -->
+    <!-- ═══════════════════════════════════════════ -->
+    <line x1="830" y1="265" x2="830" y2="500" stroke="#6366f1" stroke-width="2.5" marker-end="url(#arrowIndigo)" filter="url(#glow)"/>
+    <text x="845" y="485" font-size="8.5" fill="#6366f1" font-family="JetBrains Mono, monospace">stdin JSON</text>
+
+    <line x1="800" y1="500" x2="800" y2="265" stroke="#6366f1" stroke-width="2.5" marker-end="url(#arrowIndigo)" filter="url(#glow)" stroke-dasharray="6,3"/>
+    <text x="740" y="485" font-size="8.5" fill="#6366f1" font-family="JetBrains Mono, monospace">stdout JSON</text>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- LAYER 3 — Python Daemon                    -->
+    <!-- ═══════════════════════════════════════════ -->
+    <rect x="30" y="500" width="1040" height="145" rx="12" fill="#0f172a" stroke="#1e293b" stroke-width="1.5"/>
+    <text x="60" y="526" font-size="11" fill="#64748b" font-weight="600" letter-spacing="2" font-family="JetBrains Mono, monospace">LAYER 3 — PYTHON DAEMON (PERSISTENT PROCESS)</text>
+
+    <rect class="node" data-id="json-pipe" x="80" y="540" width="150" height="50" rx="8" fill="#1a1a2e" stroke="#a78bfa" stroke-width="1.2" cursor="pointer"/>
+    <text x="155" y="562" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="600">📡 JSON Pipe</text>
+    <text x="155" y="578" text-anchor="middle" font-size="9" fill="#94a3b8">stdin/stdout protocol</text>
+
+    <rect class="node" data-id="retinaface" x="260" y="540" width="150" height="50" rx="8" fill="#1a1a2e" stroke="#a78bfa" stroke-width="1.2" cursor="pointer"/>
+    <text x="335" y="562" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="600">🔍 RetinaFace</text>
+    <text x="335" y="578" text-anchor="middle" font-size="9" fill="#94a3b8">det_10g.onnx • 640×640</text>
+
+    <rect class="node" data-id="arcface" x="440" y="540" width="150" height="50" rx="8" fill="#1a1a2e" stroke="#a78bfa" stroke-width="1.2" cursor="pointer"/>
+    <text x="515" y="562" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="600">🧠 ArcFace R100</text>
+    <text x="515" y="578" text-anchor="middle" font-size="9" fill="#94a3b8">w600k_r50.onnx • 512-d</text>
+
+    <rect class="node" data-id="matcher" x="620" y="540" width="170" height="50" rx="8" fill="#1a1a2e" stroke="#a78bfa" stroke-width="1.2" cursor="pointer"/>
+    <text x="705" y="562" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="600">⚡ Multi-Variant Matcher</text>
+    <text x="705" y="578" text-anchor="middle" font-size="9" fill="#94a3b8">Cosine sim + eye fallback</text>
+
+    <rect class="node" data-id="augmentation" x="820" y="540" width="195" height="50" rx="8" fill="#1a1a2e" stroke="#a78bfa" stroke-width="1.2" cursor="pointer"/>
+    <text x="917" y="562" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="600">🔄 Augmentation Engine</text>
+    <text x="917" y="578" text-anchor="middle" font-size="9" fill="#94a3b8">13 synthetic variants/student</text>
+
+    <!-- Arrows inside Layer 3 -->
+    <line x1="230" y1="565" x2="260" y2="565" stroke="#a78bfa" stroke-width="1" marker-end="url(#arrowIndigo)"/>
+    <line x1="410" y1="565" x2="440" y2="565" stroke="#a78bfa" stroke-width="1" marker-end="url(#arrowIndigo)"/>
+    <line x1="590" y1="565" x2="620" y2="565" stroke="#a78bfa" stroke-width="1" marker-end="url(#arrowIndigo)"/>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- ARROWS: Layer 3 → Layer 4 (Storage)        -->
+    <!-- ═══════════════════════════════════════════ -->
+    <line x1="155" y1="590" x2="155" y2="685" stroke="#10b981" stroke-width="2" marker-end="url(#arrowGreen)"/>
+    <text x="105" y="645" font-size="8" fill="#10b981" font-family="JetBrains Mono, monospace">File read</text>
+
+    <line x1="705" y1="590" x2="705" y2="685" stroke="#10b981" stroke-width="2" marker-end="url(#arrowGreen)" marker-start="url(#arrowGreen)"/>
+    <text x="720" y="645" font-size="8" fill="#10b981" font-family="JetBrains Mono, monospace">Read/Write</text>
+
+    <!-- Layer 2 → Layer 4 (SQL) -->
+    <line x1="200" y1="465" x2="200" y2="685" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrowAmber)" stroke-dasharray="5,3"/>
+    <text x="210" y="640" font-size="8" fill="#f59e0b" font-family="JetBrains Mono, monospace">SQL queries</text>
+
+    <!-- Layer 2 → Supabase Storage -->
+    <line x1="400" y1="465" x2="400" y2="685" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrowAmber)" stroke-dasharray="5,3"/>
+    <text x="410" y="640" font-size="8" fill="#f59e0b" font-family="JetBrains Mono, monospace">Storage upload</text>
+
+    <!-- Python → Supabase (metadata) -->
+    <line x1="335" y1="590" x2="335" y2="685" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrowAmber)" stroke-dasharray="4,3"/>
+    <text x="280" y="645" font-size="8" fill="#f59e0b" font-family="JetBrains Mono, monospace">psycopg2</text>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- LAYER 4 — Storage                          -->
+    <!-- ═══════════════════════════════════════════ -->
+    <rect x="30" y="685" width="1040" height="110" rx="12" fill="#0f172a" stroke="#1e293b" stroke-width="1.5"/>
+    <text x="60" y="711" font-size="11" fill="#64748b" font-weight="600" letter-spacing="2" font-family="JetBrains Mono, monospace">LAYER 4 — STORAGE</text>
+
+    <rect class="node" data-id="cache-json" x="80" y="725" width="175" height="50" rx="8" fill="#1a1a2e" stroke="#10b981" stroke-width="1.2" cursor="pointer"/>
+    <text x="167" y="747" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="600">💾 embeddings_cache.json</text>
+    <text x="167" y="763" text-anchor="middle" font-size="9" fill="#94a3b8">Multi-variant embeddings</text>
+
+    <rect class="node" data-id="images-folder" x="285" y="725" width="140" height="50" rx="8" fill="#1a1a2e" stroke="#10b981" stroke-width="1.2" cursor="pointer"/>
+    <text x="355" y="747" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="600">📂 images/ folder</text>
+    <text x="355" y="763" text-anchor="middle" font-size="9" fill="#94a3b8">Local enrollment photos</text>
+
+    <rect class="node" data-id="supabase-pg" x="455" y="725" width="200" height="50" rx="8" fill="#1a1a2e" stroke="#f59e0b" stroke-width="1.2" cursor="pointer"/>
+    <text x="555" y="747" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="600">🐘 Supabase PostgreSQL</text>
+    <text x="555" y="763" text-anchor="middle" font-size="9" fill="#94a3b8">users • students • logs • session</text>
+
+    <rect class="node" data-id="supabase-storage" x="685" y="725" width="200" height="50" rx="8" fill="#1a1a2e" stroke="#f59e0b" stroke-width="1.2" cursor="pointer"/>
+    <text x="785" y="747" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="600">☁️ Supabase Storage</text>
+    <text x="785" y="763" text-anchor="middle" font-size="9" fill="#94a3b8">Bucket: faces/students/</text>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- LAYER 5 — External Services                -->
+    <!-- ═══════════════════════════════════════════ -->
+    <rect x="30" y="825" width="1040" height="80" rx="12" fill="#0f172a" stroke="#1e293b" stroke-width="1.5"/>
+    <text x="60" y="851" font-size="11" fill="#64748b" font-weight="600" letter-spacing="2" font-family="JetBrains Mono, monospace">LAYER 5 — EXTERNAL SERVICES</text>
+
+    <rect class="node" data-id="twilio" x="80" y="862" width="220" height="30" rx="7" fill="#2a1a1a" stroke="#ef4444" stroke-width="1.2" cursor="pointer"/>
+    <text x="190" y="882" text-anchor="middle" font-size="11" fill="#fca5a5" font-weight="600">📱 Twilio WhatsApp API</text>
+
+    <rect class="node" data-id="model-files" x="340" y="862" width="260" height="30" rx="7" fill="#1a1a2e" stroke="#64748b" stroke-width="1.2" cursor="pointer"/>
+    <text x="470" y="882" text-anchor="middle" font-size="11" fill="#e2e8f0" font-weight="600">📦 InsightFace Model Files (Buffalo_L)</text>
+
+    <!-- Arrow: Surveillance → Twilio -->
+    <path d="M685,375 L685,400 Q685,420 700,420 L1020,420 Q1040,420 1040,440 L1040,870 Q1040,880 1030,880 L310,880" stroke="#ef4444" stroke-width="2" fill="none" marker-end="url(#arrowRed)" stroke-dasharray="6,3" filter="url(#glow)"/>
+    <text x="1000" y="646" font-size="8.5" fill="#ef4444" font-family="JetBrains Mono, monospace" transform="rotate(90,1000,646)">WhatsApp API</text>
+
+    <!-- Arrow: Models on disk → Python daemon -->
+    <line x1="470" y1="862" x2="917" y2="600" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrowIndigo)" stroke-dasharray="4,3"/>
+    <text x="720" y="742" font-size="8" fill="#64748b" font-family="JetBrains Mono, monospace" transform="rotate(-22,720,742)">~/.insightface/models/</text>
+
+  </svg>
+</div>
+
+<!-- Tooltip element -->
+<div class="tooltip" id="tooltip">
+  <h3 id="tooltip-title"></h3>
+  <p id="tooltip-desc"></p>
+</div>
+
+<script>
+const DESCRIPTIONS = {
+  'live-camera': {
+    title: 'Live Camera Feed',
+    desc: 'Captures frames from the user\'s webcam via getUserMedia API every 500ms. Each frame is converted to a Blob via canvas.toBlob() and POSTed to /recognize with the x-detection-source: live-camera header. Skips sending if a previous frame is still processing.'
+  },
+  'upload-form': {
+    title: 'Image Upload Form',
+    desc: 'Accepts a single image file (JPEG/PNG/WebP, max 10MB) via a multipart form submission to POST /upload. The server immediately renders a scanning animation page while processing runs in the background via the Python daemon.'
+  },
+  'ejs-pages': {
+    title: 'EJS Result Pages',
+    desc: 'Server-side rendered templates that display match results. scanning.ejs shows an animated processing indicator while the daemon works. result.ejs displays the matched identity, confidence score, and surveillance metadata in a styled dashboard.'
+  },
+  'canvas-overlay': {
+    title: 'Canvas Overlay',
+    desc: 'Draws real-time bounding boxes and labels over the live camera feed. Green boxes with name labels for recognized individuals, red boxes with "Unknown" labels for unrecognized faces. Updated on every /recognize response that includes all_detections data.'
+  },
+  'auth-middleware': {
+    title: 'Auth Middleware',
+    desc: 'Express middleware that protects all sensitive routes. Uses express-session with connect-pg-simple for PostgreSQL-backed session persistence. Passwords are hashed with bcryptjs. Sessions expire after 24 hours.'
+  },
+  'multer': {
+    title: 'Multer Upload Handler',
+    desc: 'Handles multipart file uploads with a 10MB size limit. Only image files (JPEG, PNG, WebP, GIF) are accepted. Files are saved to the uploads/ directory with timestamp-based filenames to prevent collisions.'
+  },
+  'routes': {
+    title: 'Route Handlers',
+    desc: 'Express routes handling the three main workflows: POST /recognize (live camera AJAX), POST /upload (static image with scanning animation), and POST /add-student (enrollment). Also exposes surveillance API endpoints and daemon health checks.'
+  },
+  'python-bridge': {
+    title: 'Python Bridge (IPC)',
+    desc: 'Manages the persistent Python daemon via child_process.spawn. Routes requests through stdin/stdout JSON pipe with unique request IDs. Auto-restarts on crash (up to 5 attempts with exponential backoff). 90-second timeout per request to handle cold starts.'
+  },
+  'track-manager': {
+    title: 'TrackManager',
+    desc: 'Maintains identity lifecycle across frames: active → ghost → dead. Ghost tracks are kept alive for 20 frames (20 seconds) to enable re-identification when a person briefly leaves and re-enters the frame. Uses embedding cosine similarity (threshold 0.6) and position proximity for re-identification.'
+  },
+  'confidence-filter': {
+    title: 'ConfidenceFilter',
+    desc: 'Applies Exponential Moving Average (EMA) smoothing to raw detection confidence per track. Formula: smoothed = 0.3 × raw + 0.7 × previous. A track is considered "lost" after 3 consecutive frames below 0.3 confidence. Prevents flickering detections and stabilizes the display.'
+  },
+  'threat-analyzer': {
+    title: 'ThreatAnalyzer',
+    desc: 'Calculates a multi-factor suspicion score (0–100) combining: suspicion score (40%), behavior flags (25%), classification risk (20%), and confidence inverse (15%). Maps to threat levels: LOW (0–25), MEDIUM (26–50), HIGH (51–75), CRITICAL (76–100). Hysteresis prevents jitter: escalation needs 5 consecutive ticks, de-escalation needs 10.'
+  },
+  'alert-manager': {
+    title: 'AlertManager',
+    desc: 'Prevents alert fatigue through 3-second event deduplication and per-event cooldowns (3–6 seconds). Only HIGH and CRITICAL priority events trigger external WhatsApp alerts via Twilio. Low-priority events are logged internally. The alert buffer is flushed every engine tick (1 second).'
+  },
+  'frame-dedup': {
+    title: 'Frame Deduplication',
+    desc: 'Compares MD5 hashes of the first 1024 bytes of incoming frames to detect duplicates within a 500ms window. Duplicate frames return cached results instantly without invoking the Python daemon. Cache is cleaned when size exceeds 100 entries.'
+  },
+  'json-pipe': {
+    title: 'JSON Pipe Protocol',
+    desc: 'Communication between Node.js and the Python daemon uses a line-delimited JSON protocol over stdin/stdout. Each request includes a unique ID for response routing. Supports commands: match (image_path), ping, regenerate, invalidate, and status. Debug logs go to stderr.'
+  },
+  'retinaface': {
+    title: 'RetinaFace Detector',
+    desc: 'Single-shot face detector with MobileNet-0.25 backbone and Feature Pyramid Network. Processes images at 640×640 resolution. Detection threshold lowered to 0.25 (from default 0.5) to handle masked and helmeted faces. Returns bounding boxes, detection scores, and 5 facial landmarks per face.'
+  },
+  'arcface': {
+    title: 'ArcFace R100 Embeddings',
+    desc: 'ResNet-50 with ArcFace loss trained on WebFace600K (600K identities). Takes aligned 112×112 face crops and produces 512-dimensional L2-normalized embedding vectors. The additive angular margin (m=0.5) forces same-person embeddings to cluster tightly, making cosine similarity an accurate match metric.'
+  },
+  'matcher': {
+    title: 'Multi-Variant Matcher',
+    desc: 'Compares an input face against ALL synthetic variants of every enrolled student. Uses cosine similarity with occlusion-adaptive weighting: if full-face similarity < 0.35, switches to 75% eye-region + 25% full-face weighting. Final confidence is quality-weighted and compared against an adaptive threshold (0.20–0.28).'
+  },
+  'augmentation': {
+    title: 'Augmentation Engine',
+    desc: 'Generates 13 synthetic variants from each enrollment photo to compensate for single-image enrollment. Variants include: horizontal flip, 4 brightness levels, 4 rotation angles (±5°, ±10°), Gaussian blur, CLAHE enhancement, and unsharp mask sharpening. Both full-face and eye-region embeddings are stored per variant.'
+  },
+  'cache-json': {
+    title: 'Embeddings Cache',
+    desc: 'JSON file storing pre-computed multi-variant ArcFace embeddings for all enrolled students. Each student has up to 13 variants with 512-d full-face and eye-region embeddings. Loaded into daemon memory at startup for sub-second matching. Regenerated via the /api/regenerate-cache endpoint.'
+  },
+  'images-folder': {
+    title: 'Local Images Folder',
+    desc: 'Stores enrollment photographs locally as a fallback when Supabase Storage is unavailable. Files are named with timestamps to prevent collisions. Used by the Python daemon to generate augmented embeddings when new students are enrolled.'
+  },
+  'supabase-pg': {
+    title: 'Supabase PostgreSQL',
+    desc: 'Cloud-hosted PostgreSQL database storing four tables: users (authentication), session (express-session store), students (enrollment metadata and image URLs), and detection_logs (audit trail of all recognitions). Accessed via pg pool from Node.js and psycopg2 from Python.'
+  },
+  'supabase-storage': {
+    title: 'Supabase Storage',
+    desc: 'Cloud object storage used for enrollment photos. Images are uploaded to the faces/students/ bucket path with public URL generation. If Supabase is unreachable, the system falls back to serving images from the local images/ directory without data loss.'
+  },
+  'twilio': {
+    title: 'Twilio WhatsApp API',
+    desc: 'Sends real-time security alerts to designated WhatsApp numbers when HIGH or CRITICAL events occur. Triggered for unknown faces detected on live camera, frequent re-entry events, restricted zone violations, and high/critical threat escalations. Configured via TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_WHATSAPP_FROM/TO environment variables.'
+  },
+  'model-files': {
+    title: 'InsightFace Model Files',
+    desc: 'Buffalo_L model pack (~300MB) downloaded automatically on first run to ~/.insightface/models/buffalo_l/. Contains 5 ONNX models: det_10g.onnx (RetinaFace), w600k_r50.onnx (ArcFace), 2d106det.onnx (landmarks), 1k3d68.onnx (3D pose), and genderage.onnx (demographics). Falls back to Buffalo_S if Buffalo_L fails.'
+  }
+};
+
+// Tooltip logic
+const tooltip = document.getElementById('tooltip');
+const tooltipTitle = document.getElementById('tooltip-title');
+const tooltipDesc = document.getElementById('tooltip-desc');
+
+document.querySelectorAll('.node').forEach(node => {
+  node.addEventListener('mouseenter', (e) => {
+    const id = node.getAttribute('data-id');
+    const info = DESCRIPTIONS[id];
+    if (!info) return;
+    tooltipTitle.textContent = info.title;
+    tooltipDesc.textContent = info.desc;
+    tooltip.classList.add('visible');
+    // Pulse effect
+    node.style.filter = 'url(#glowStrong)';
+    node.style.transition = 'filter 0.2s ease';
+  });
+
+  node.addEventListener('mousemove', (e) => {
+    const x = e.clientX + 16;
+    const y = e.clientY - 10;
+    const rect = tooltip.getBoundingClientRect();
+    const maxX = window.innerWidth - rect.width - 20;
+    const maxY = window.innerHeight - rect.height - 20;
+    tooltip.style.left = Math.min(x, maxX) + 'px';
+    tooltip.style.top = Math.min(y, maxY) + 'px';
+  });
+
+  node.addEventListener('mouseleave', () => {
+    tooltip.classList.remove('visible');
+    node.style.filter = '';
+  });
+
+  // Touch support
+  node.addEventListener('click', (e) => {
+    const id = node.getAttribute('data-id');
+    const info = DESCRIPTIONS[id];
+    if (!info) return;
+    tooltipTitle.textContent = info.title;
+    tooltipDesc.textContent = info.desc;
+
+    const isVisible = tooltip.classList.contains('visible');
+    if (isVisible && tooltip.dataset.currentId === id) {
+      tooltip.classList.remove('visible');
+      tooltip.dataset.currentId = '';
+    } else {
+      tooltip.classList.add('visible');
+      tooltip.dataset.currentId = id;
+      const svgRect = document.querySelector('.arch-svg').getBoundingClientRect();
+      const nodeRect = node.getBoundingClientRect();
+      tooltip.style.left = (nodeRect.left + nodeRect.width / 2) + 'px';
+      tooltip.style.top = (nodeRect.bottom + 8) + 'px';
+    }
+  });
+});
+
+// Hide tooltip on background click
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.node') && !e.target.closest('.tooltip')) {
+    tooltip.classList.remove('visible');
+  }
+});
+</script>
+
+</body>
+</html>
