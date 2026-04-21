@@ -13,7 +13,7 @@
  */
 
 import { spawn } from 'child_process';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { createInterface } from 'readline';
 import { randomBytes } from 'crypto';
 
@@ -37,6 +37,12 @@ class PythonBridge {
   }
 
   start() {
+    // Skip local daemon if using remote AI service
+    if (process.env.AI_SERVICE_URL) {
+      this._ready = true;
+      console.log(`[PythonBridge] Using remote AI service: ${process.env.AI_SERVICE_URL}`);
+      return;
+    }
     if (this._process || this._starting) return;
     this._starting = true;
     this._ready = false;
@@ -166,7 +172,26 @@ class PythonBridge {
 
   // Public API
 
+  // Remote HTTP API (for Vercel/Railway deployment)
+  async _sendHTTP(payload) {
+    const url = process.env.AI_SERVICE_URL;
+    if (!url) throw new Error('AI_SERVICE_URL not set');
+    const response = await fetch(`${url}/match`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(90000)
+    });
+    return response.json();
+  }
+
   async match(imagePath) {
+    if (process.env.AI_SERVICE_URL) {
+      // Remote daemon — send image as base64
+      const imageBuffer = readFileSync(imagePath);
+      const imageB64 = imageBuffer.toString('base64');
+      return this._sendHTTP({ image_b64: imageB64 });
+    }
     return this._send({ image_path: imagePath });
   }
 

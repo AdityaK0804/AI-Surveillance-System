@@ -39,6 +39,26 @@ sys.stderr.reconfigure(line_buffering=True)
 def log(msg):
     print(f"[daemon] {msg}", file=sys.stderr, flush=True)
 
+def to_python(obj):
+    """
+    Recursively convert all NumPy scalar types to native Python types.
+    Call this on any dict/list before json.dumps().
+    numpy.float32 / float64 -> float
+    numpy.int32 / int64     -> int
+    numpy.ndarray           -> list
+    """
+    if isinstance(obj, dict):
+        return {k: to_python(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [to_python(v) for v in obj]
+    if isinstance(obj, np.floating):
+        return float(obj)
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    return obj
+
 # ============================================
 # MODEL INIT — runs once at startup
 # ============================================
@@ -428,11 +448,11 @@ def do_match(image_path: str) -> dict:
                     "department": meta.get("Department", "N/A"),
                     "year": meta.get("Year", "N/A"),
                     "section": meta.get("Section", "N/A"),
-                    "confidence": round(final_confidence, 4),
-                    "full_sim": round(best_full, 4),
-                    "eye_sim": round(best_eye, 4) if best_eye > 0 else None,
+                    "confidence": round(float(final_confidence), 4),
+                    "full_sim": round(float(best_full), 4),
+                    "eye_sim": round(float(best_eye), 4) if best_eye > 0 else None,
                     "filename": filename,
-                    "quality_factor": round(quality_factor, 3),
+                    "quality_factor": round(float(quality_factor), 3),
                     "bbox": bbox,
                     "face_index": face_idx,
                     "is_unknown": False
@@ -445,7 +465,7 @@ def do_match(image_path: str) -> dict:
             matched_results.append(face_matches[0])
             all_face_results.append({
                 "bbox": bbox,
-                "det_score": round(det_score, 3),
+                "det_score": round(float(det_score), 3),
                 "is_unknown": False,
                 "name": face_matches[0]["name"],
                 "confidence": face_matches[0]["confidence"],
@@ -455,7 +475,7 @@ def do_match(image_path: str) -> dict:
             # Unknown person — still report bbox for overlay + alert
             all_face_results.append({
                 "bbox": bbox,
-                "det_score": round(det_score, 3),
+                "det_score": round(float(det_score), 3),
                 "is_unknown": True,
                 "name": "Unknown",
                 "confidence": 0.0,
@@ -474,9 +494,9 @@ def do_match(image_path: str) -> dict:
         "matches": matched_results[:5],
         "all_detections": all_face_results,   # NEW: all faces with bbox + unknown flag
         "total_matches": len(matched_results),
-        "uploaded_image_quality": round(frame_quality, 3),
-        "detection_score": round(all_faces[0].det_score if all_faces else 0, 3),
-        "elapsed_seconds": round(elapsed, 2),
+        "uploaded_image_quality": round(float(frame_quality), 3),
+        "detection_score": round(float(all_faces[0].det_score) if all_faces else 0, 3),
+        "elapsed_seconds": round(float(elapsed), 2),
         "bbox": primary_bbox,
         "model_info": {
             "detection": "RetinaFace (InsightFace Buffalo_L)",
@@ -539,7 +559,7 @@ for line in sys.stdin:
                 continue
             result = do_match(image_path)
             result["id"] = req_id
-            print(json.dumps(result), flush=True)
+            print(json.dumps(to_python(result)), flush=True)
 
         else:
             print(json.dumps({"id": req_id, "error": "Unknown command"}), flush=True)
@@ -552,3 +572,49 @@ for line in sys.stdin:
         print(json.dumps({"id": req_id or "error", "matches": [], "error": str(e)}), flush=True)
 
 log("Daemon stdin closed — exiting.")
+
+# ============================================
+# HTTP MODE — FastAPI endpoint for remote deployment
+# ============================================
+# Run as: python python_daemon.py --http  (starts FastAPI on port 5001)
+# Run as: python python_daemon.py         (stdin/stdout mode, local dev)
+
+if __name__ == "__main__" and "--http" in sys.argv:
+    import base64
+    import tempfile
+    try:
+        from fastapi import FastAPI
+        import uvicorn
+        from pydantic import BaseModel
+
+        http_app = FastAPI()
+
+        class MatchRequest(BaseModel):
+            image_b64: str
+
+        @http_app.post("/match")
+        async def http_match(req: MatchRequest):
+            img_bytes = base64.b64decode(req.image_b64)
+            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as f:
+                f.write(img_bytes)
+                tmp_path = f.name
+            try:
+                result = do_match(tmp_path)
+                return to_python(result)
+            finally:
+                os.unlink(tmp_path)
+
+        @http_app.get("/health")
+        def health():
+            return {"ok": True, "models_ok": models_ok, "cache": len(_cache)}
+
+        @http_app.post("/regenerate")
+        def regen():
+            regenerate_all()
+            return {"done": True, "count": len(_cache)}
+
+        port = int(os.getenv("PORT", 5001))
+        log(f"Starting HTTP mode on port {port}")
+        uvicorn.run(http_app, host="0.0.0.0", port=port)
+    except ImportError:
+        print("Install fastapi and uvicorn: pip install fastapi uvicorn", file=sys.stderr)
