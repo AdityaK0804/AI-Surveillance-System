@@ -37,10 +37,17 @@ class PythonBridge {
   }
 
   start() {
-    // Skip local daemon if using remote AI service
-    if (process.env.AI_SERVICE_URL) {
-      this._ready = true;
-      console.log(`[PythonBridge] Using remote AI service: ${process.env.AI_SERVICE_URL}`);
+    // Skip local daemon if using remote AI service OR running on Vercel
+    if (process.env.AI_SERVICE_URL || process.env.VERCEL) {
+      this._ready = !!process.env.AI_SERVICE_URL;
+      if (process.env.VERCEL) {
+        console.log(`[PythonBridge] Running on Vercel — local daemon disabled.`);
+      }
+      if (process.env.AI_SERVICE_URL) {
+        console.log(`[PythonBridge] Using remote AI service: ${process.env.AI_SERVICE_URL}`);
+      } else if (process.env.VERCEL) {
+        console.warn(`[PythonBridge] WARNING: No AI_SERVICE_URL provided. AI features will be disabled.`);
+      }
       return;
     }
     if (this._process || this._starting) return;

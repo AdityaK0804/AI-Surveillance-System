@@ -32,11 +32,14 @@ const surveillanceEngine = new SurveillanceEngine({
   threatAnalyzer: { decayRate: 1, escalationPersistence: 5, deEscalationPersistence: 10 },
   alertManager: { defaultCooldownMs: 5000, dedupWindowMs: 3000 },
 });
-surveillanceEngine.start();
+// Surveillance engine - don't start background ticker on Vercel
+if (!process.env.VERCEL) {
+    surveillanceEngine.start();
+}
 
-// Ensure uploads directory exists
-const uploadsDir = "uploads";
-if (!existsSync(uploadsDir)) {
+// Ensure uploads directory exists (use /tmp on Vercel)
+const uploadsDir = process.env.VERCEL ? "/tmp" : "uploads";
+if (!process.env.VERCEL && !existsSync(uploadsDir)) {
   mkdirSync(uploadsDir, { recursive: true });
 }
 

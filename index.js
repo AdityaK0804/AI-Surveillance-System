@@ -20,10 +20,12 @@ const port = process.env.PORT || 8000;
 await initializeDatabase();
 
 // Set EJS as the template engine
+const __dirname = path.resolve();
 app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
 
 // Serve static files from the "public" directory
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, "public")));
 
 // Serve uploaded files and predefined images
 app.use("/uploads", express.static("uploads"));
@@ -90,7 +92,11 @@ app.use("/about", aboutroutes);
 // Use contact router
 app.use("/contact", contactroutes);
 
-// Start the server
-app.listen(port, () => {
-    console.log(`App is listening on port ${port}`);
-});
+// Start the server (only if not on Vercel)
+if (!process.env.VERCEL) {
+    app.listen(port, () => {
+        console.log(`App is listening on port ${port}`);
+    });
+}
+
+export default app;

@@ -644,11 +644,11 @@
                 const secLive = document.getElementById('liveMatchSection');
                 // Replace the tiny 240x240 box with a full-width layout
                 secLive.innerHTML = `
-                    <div style="position: relative; width: 100%; background: #000; border-radius: 12px; overflow: hidden; border: 1px solid #262626; margin-bottom: 16px;">
-                        <video id="liveVideo" autoplay playsinline muted style="width: 100%; max-height: 480px; display: block; object-fit: cover;"></video>
-                        <canvas id="liveOverlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
+                    <div style="position:relative; width:100%; height:480px; background:#000; border-radius:12px; overflow:hidden; border:1px solid #262626; margin-bottom:16px;">
+                        <video id="liveVideo" autoplay playsinline muted style="width:100%; height:100%; display:block; object-fit:cover; position:absolute; top:0; left:0; z-index:2; background:#000;"></video>
+                        <canvas id="liveOverlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index:3;"></canvas>
                         <canvas id="liveCanvas" style="display: none;"></canvas>
-                        <div id="cameraPlaceholder" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #525252; background: #0a0a0a;">
+                        <div id="cameraPlaceholder" style="position:absolute; top:0; left:0; right:0; bottom:0; z-index:1; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#525252; background:#0a0a0a;">
                             <i class="fas fa-video-slash" style="font-size: 4rem; margin-bottom: 15px;"></i>
                             <span style="font-size: 1rem;">Camera stream stopped</span>
                         </div>
@@ -686,9 +686,20 @@
                         video.srcObject = stream;
                         await new Promise(resolve => { video.onloadedmetadata = resolve; });
                         await video.play();
+                        video.style.display = 'block';
+                        video.style.opacity = '1';
                     }
 
-                    if (placeholder) placeholder.style.display = 'none';
+                    if (placeholder) {
+                        placeholder.style.display = 'none';
+                        placeholder.style.zIndex = '0';
+                    }
+                    const vid = document.getElementById('liveVideo');
+                    if (vid) {
+                        vid.style.display = 'block';
+                        vid.style.opacity = '1';
+                        vid.style.zIndex = '2';
+                    }
 
                     const badge = document.getElementById('liveBadge');
                     if (badge) badge.style.display = 'block';
@@ -810,6 +821,11 @@
                 canvas.toBlob(async (blob) => {
                     if (!blob) { isProcessingFrame = false; return; }
 
+                    // Capture current frame as the "uploaded photo" for result display
+                    const frameDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                    document.getElementById('resultLeftImg').src = frameDataUrl;
+                    document.getElementById('animPreviewImg').src = frameDataUrl;
+
                     const formData = new FormData();
                     formData.append('image', blob, `live_${Date.now()}.jpg`);
 
@@ -867,7 +883,13 @@
                                     if (isCameraRunning) {
                                         stopCamera();
                                         document.getElementById('matchModeToggle').style.display = 'none';
+                                        // Preserve the captured frame — renderResultUI must not overwrite it
+                                        const capturedSrc = document.getElementById('resultLeftImg').src;
                                         renderResultUI(data);
+                                        // Restore captured frame (renderResultUI may reset it)
+                                        if (capturedSrc && capturedSrc !== window.location.href) {
+                                            document.getElementById('resultLeftImg').src = capturedSrc;
+                                        }
                                     }
                                 }, 1500);
                             }

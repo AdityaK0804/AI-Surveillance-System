@@ -3,24 +3,32 @@
   "builds": [
     {
       "src": "index.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "maxDuration": 60
+      }
     }
   ],
   "routes": [
+    {
+      "src": "/uploads/(.*)",
+      "dest": "/api/uploads/$1"
+    },
+    {
+      "src": "/images/(.*)",
+      "dest": "/api/images/$1"
+    },
+    {
+      "src": "/public/(.*)",
+      "dest": "/public/$1"
+    },
     {
       "src": "/(.*)",
       "dest": "index.js"
     }
   ],
+  "cleanUrls": true,
   "env": {
-    "AI_SERVICE_URL": "@ai_service_url",
-    "DATABASE_URL": "@database_url",
-    "SUPABASE_URL": "@supabase_url",
-    "SUPABASE_ANON_KEY": "@supabase_anon_key",
-    "SESSION_SECRET": "@session_secret",
-    "TWILIO_ACCOUNT_SID": "@twilio_account_sid",
-    "TWILIO_AUTH_TOKEN": "@twilio_auth_token",
-    "TWILIO_WHATSAPP_FROM": "@twilio_whatsapp_from",
-    "ALERT_PHONE_NUMBER": "@alert_phone_number"
+    "VERCEL": "1"
   }
 }
